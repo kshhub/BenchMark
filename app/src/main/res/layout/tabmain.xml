@@ -8,14 +8,14 @@
      android:layout_width="fill_parent"
      
     >
-    <LinearLayout
-	    android:orientation="vertical"
-	    android:layout_width="fill_parent"
-	    android:layout_height="fill_parent"
-	    android:background="@drawable/bg_default"
-	    android:scaleType="fitXY"
-    >
- 	   <!--
+
+	<LinearLayout
+		android:layout_width="fill_parent"
+		android:layout_height="fill_parent"
+		android:background="@drawable/bg_default"
+		android:orientation="vertical"
+		android:scaleType="fitXY">
+		<!--
  	   <ImageView android:id="@+id/title_img"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
@@ -450,26 +450,26 @@
 				android:prompt="@string/sp_journal"></Spinner>
 		</RelativeLayout>
 
-		<ImageButton android:id="@+id/btn_execute"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:src="@drawable/ibtn_execute"		
-				android:scaleType="fitXY"
-				android:padding="0dp"
-				android:background="#00000000"
-				android:adjustViewBounds="true"	
-				android:layout_marginTop="25dip"
-				
-				android:layout_gravity="center_horizontal"			
-			></ImageButton>
-     		<ImageView 
-	            android:layout_width="wrap_content"
-	            android:layout_height="wrap_content"
-	            android:src="@drawable/last_title"
-	            android:scaleType="fitXY"            
-	            android:layout_gravity="right">
-	       </ImageView>	
-		</LinearLayout>
+		<ImageButton
+			android:id="@+id/btn_execute"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="center_horizontal"
+			android:layout_marginTop="25dip"
+			android:adjustViewBounds="true"
+			android:background="#00000000"
+			android:padding="0dp"
+			android:scaleType="fitXY"
+
+			android:src="@drawable/ibtn_execute"></ImageButton>
+
+		<ImageView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="right"
+			android:scaleType="fitXY"
+			android:src="@drawable/last_title"></ImageView>
+	</LinearLayout>
     </ScrollView>
 
 
@@ -509,14 +509,13 @@
 		    android:layout_height="fill_parent" >
 
 
-   	       <ImageView android:id="@+id/position_mea" 
-	           android:layout_width="wrap_content"
-	           android:layout_height="wrap_content"
-	           android:layout_centerHorizontal="true"
-	           android:layout_centerVertical="true"
-	            android:src="@drawable/bg_mea_middle06"
-	            android:scaleType="fitXY"
-	          ></ImageView>
+			<ImageView
+				android:id="@+id/position_mea"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_centerInParent="true"
+				android:scaleType="fitXY"
+				android:src="@drawable/bg_mea"></ImageView>
 	       
    	       	<ImageButton android:id="@+id/btn_all"
 				android:layout_width="wrap_content"
