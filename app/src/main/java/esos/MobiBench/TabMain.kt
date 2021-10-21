@@ -413,9 +413,12 @@ class TabMain : TabActivity() {
             mClickListener
         )
         findViewById<View>(R.id.btn_all).setOnClickListener(mClickListener)
+
+        /* editV1
         findViewById<View>(R.id.btn_file).setOnClickListener(mClickListener)
         findViewById<View>(R.id.btn_sqlite).setOnClickListener(mClickListener)
         findViewById<View>(R.id.btn_custom).setOnClickListener(mClickListener)
+         */
 
         /* ******************* */
         /*   Spinner Control   */
@@ -770,6 +773,7 @@ class TabMain : TabActivity() {
                 load_init()
             }
             R.id.btn_all -> startMobibenchExe(0)
+            /* editV1
             R.id.btn_file -> startMobibenchExe(1)
             R.id.btn_sqlite ->                //image.post(new StartAni());
                 // For Database
@@ -780,6 +784,7 @@ class TabMain : TabActivity() {
                 } else {
                     startMobibenchExe(3)
                 }
+            */
         }
     }
 
