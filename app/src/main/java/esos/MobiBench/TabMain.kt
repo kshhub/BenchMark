@@ -95,7 +95,7 @@ class TabMain : TabActivity() {
                 //while(image.getId() != R.drawable.bg_mea_middle06 ){
                 anidrawable!!.stop()
                 //}
-                image!!.setImageResource(R.drawable.bg_mea_middle06)
+                image!!.setImageResource(R.drawable.bg_mea)
                 if (msg.arg1 == 1) {
                     print_error(1)
                 }
@@ -142,9 +142,12 @@ class TabMain : TabActivity() {
                 .setIndicator("", resources.getDrawable(R.drawable.tab_help)).setContent(R.id.help)
         )
 
-        /* For Animation*/image = findViewById<View>(R.id.position_mea) as ImageView
+        /* For Animation*/
+
+        image = findViewById<View>(R.id.position_mea) as ImageView
         image!!.setBackgroundResource(R.drawable.aniimage)
         anidrawable = image!!.background as AnimationDrawable
+
         //image.post(new StartAni());
 
 
