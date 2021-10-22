@@ -137,10 +137,12 @@ class TabMain : TabActivity() {
                 .setIndicator("", resources.getDrawable(R.drawable.tab_history))
                 .setContent(R.id.history)
         )
+        /*
         tabHost.addTab(
             tabHost.newTabSpec("setting")
                 .setIndicator("", resources.getDrawable(R.drawable.tab_help)).setContent(R.id.help)
         )
+        */
 
         /* For Animation*/
 
