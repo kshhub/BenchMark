@@ -9,7 +9,6 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.graphics.drawable.AnimationDrawable
-import android.icu.text.IDNA
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.*
@@ -17,7 +16,6 @@ import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
-import androidx.annotation.RequiresApi
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.math.BigInteger
@@ -924,25 +922,6 @@ class TabMain : TabActivity() {
         editor!!.putBoolean("p_cb_update", false)
         editor!!.putBoolean("p_cb_delete", false)
         editor!!.commit()
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        val inflater = menuInflater
-        inflater.inflate(R.menu.menu, menu)
-        return true
-    }
-
-    @RequiresApi(Build.VERSION_CODES.N)
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        val intent: Intent
-        when (item.itemId) {
-            R.id.menu_info -> {
-                intent = Intent(this@TabMain, IDNA.Info::class.java)
-                startActivity(intent)
-                return true
-            }
-        }
-        return false
     }
 
     fun print_error(type: Int) {
