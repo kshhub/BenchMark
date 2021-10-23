@@ -1,173 +1,185 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="fill_parent"
-	android:layout_height="wrap_content"  
- 	android:orientation="vertical"
- 	
- 	>
+	android:layout_height="wrap_content"
+
+	android:orientation="vertical">
 
 	<LinearLayout
-	    android:layout_width="fill_parent"
-	    android:layout_height="wrap_content"
-	    android:orientation="horizontal"
-	    android:gravity="center"
-	    android:padding="5dp" 
-	    android:layout_marginRight="5dip">
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginRight="5dip"
+		android:gravity="center"
+		android:orientation="horizontal"
+		android:padding="5dp">
 
-	 	<ImageView 
-	 		android:id="@+id/iconItemr"  
-	  		android:layout_width="wrap_content" 
-	  		android:layout_height="wrap_content"
-	  		android:padding="8dip"
-	  		android:layout_gravity="center_vertical"
-	  		/>
-	
-	  	<LinearLayout
-			android:layout_width="wrap_content" 
-			android:layout_height="wrap_content"  
-	 		android:orientation="vertical"
-	 		android:layout_alignParentLeft="true"
-	 		>
-	 		<LinearLayout
-	 		    android:layout_width="wrap_content"
-	 		    android:layout_height="wrap_content"
-	 		    android:orientation="horizontal">
-		 	    <TextView android:id="@+id/dataItem07r"
-			 	    android:layout_width="wrap_content"
-				    android:layout_height="wrap_content"
-			 	    android:text="exp_name"
-			 	    android:textSize="17dip"
-			 	    android:textColor="#ffffff"
-			 	></TextView>	
-			    <TextView 
-			 	    android:layout_width="wrap_content"
-				    android:layout_height="wrap_content"
-			 	    android:text=" : "
-			 	    		 	    android:textSize="17dip"
-			 	    android:textColor="#ffffff"		 	    
-			 	></TextView>	    
-		 		<TextView android:id="@+id/dataItem06r"
-			 	    android:layout_width="wrap_content"
-				    android:layout_height="wrap_content"
-			 	    android:text="35"
-			 	    		 	    android:textSize="17dip"
-			 	    		 	    android:textColor="#ffffff"
-		 		></TextView>	    
-	 		</LinearLayout>
-	 		<TextView
-			  	android:layout_width="fill_parent"
-			  	android:layout_height="wrap_content"
-			  	android:text=" "
-			  	android:background="#E0FFFF"
-			  	android:textSize="1dp"
-			  	android:layout_marginBottom="3dip"
-	 		></TextView>
-	 		<LinearLayout
-	 		    android:layout_width="wrap_content"
-	 		    android:layout_height="wrap_content"
-	 		    android:orientation="horizontal">
-		 		<TextView
-			 	    android:layout_width="wrap_content"
-				    android:layout_height="wrap_content"
-			 	    android:text="· CPU : "
-			 	    		 	    android:textColor="#ffffff"
-			 	></TextView>		    
-				 <TextView android:id="@+id/tmp_txt1r"
-	 			    android:layout_width="wrap_content"
-	 			    android:layout_height="wrap_content"
-	 			    android:text="Busy("
-	 			></TextView> 			
-	 			<TextView  android:id="@+id/dataItem01r"  
-				    android:layout_width="wrap_content" 
-				    android:layout_height="wrap_content"
-				    android:text="30"
-				    />
-	 			<TextView android:id="@+id/tmp_txt2r"
-	 			    android:layout_width="wrap_content"
-	 			    android:layout_height="wrap_content"
-	 			    android:text="), IOw("
-	 			></TextView>
-				<TextView  android:id="@+id/dataItem02r"  
-				    android:layout_width="wrap_content" 
-				    android:layout_height="wrap_content"
-				    android:text="40"
-				/>   
-	 			<TextView android:id="@+id/tmp_txt3r"
-	 			    android:layout_width="wrap_content"
-	 			    android:layout_height="wrap_content"
-	 			    android:text="), "
-	 			></TextView>			
-		 		<TextView android:id="@+id/tmp_txt4r"
-				    android:layout_width="wrap_content"
-				    android:layout_height="wrap_content"
-				    android:text="Idle("
-			    ></TextView>
-		 		<TextView  android:id="@+id/dataItem03r"  
-				    android:layout_width="wrap_content" 
-				    android:layout_height="wrap_content"
-				    android:text="29"
-				/>   
-	 			<TextView 
-	 			    android:layout_width="wrap_content"
-	 			    android:layout_height="wrap_content"
-	 			    android:text=")"
-	 			></TextView>	 		    
-	 		    
-	 		</LinearLayout>
-	 		<LinearLayout
-	 		    android:layout_width="wrap_content"
-	 		    android:layout_height="wrap_content"
-	 		    android:orientation="horizontal">
-				<TextView
-			 	    android:layout_width="wrap_content"
-				    android:layout_height="wrap_content"
-			 	    android:text="· Ctx SW : "
-			 	    android:textColor="#ffffff"
-			 	></TextView> 		 		    
-	   		 	<TextView android:id="@+id/dataItem04r"
-	 		 	    android:layout_width="wrap_content"
-	 			    android:layout_height="wrap_content"
-	 		 	    android:text="1000"
-	 		 	></TextView>		 	   
-	   		 	<TextView
-	 		 	    android:layout_width="wrap_content"
-	 			    android:layout_height="wrap_content"
-	 		 	    android:text=" ("
-	 		 	></TextView>	
-	 		 	<TextView android:id="@+id/dataItem05r"
-	 		 	    android:layout_width="wrap_content"
-	 			    android:layout_height="wrap_content"
-	 		 	    android:text="500"
-	 		 	></TextView>	
-	 		 	<TextView
-	 		 	    android:layout_width="wrap_content"
-	 			    android:layout_height="wrap_content"
-	 		 	    android:text=")"
-	 		 	></TextView>			     
-	 		     
-	
-			</LinearLayout>
-	  
-		</LinearLayout>  
+		<ImageView
+			android:id="@+id/iconItemr"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="center_vertical"
+			android:padding="8dip" />
 
 		<LinearLayout
-		    android:layout_width="fill_parent"
-		    android:layout_height="fill_parent"
-		    android:gravity="right|center_vertical|center_horizontal"
-		    android:orientation="vertical" />
- 	</LinearLayout>
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_alignParentLeft="true"
+			android:orientation="vertical">
 
-	
- 	<TextView android:id="@+id/list_last_line"
-	  	android:layout_width="fill_parent"
-	  	android:layout_height="wrap_content"
-	  	android:text=" "
-	  	android:background="#ffFFFF"
-	  	android:textSize="1dp"
-	  	android:layout_marginLeft="10dip"
-	  	android:layout_marginRight="10dip"
+			<LinearLayout
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:orientation="horizontal">
 
-	></TextView>
+				<TextView
+					android:id="@+id/dataItem07r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="exp_name"
+					android:textColor="#ffffff"
+					android:textSize="17dip"></TextView>
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text=" : "
+					android:textColor="#ffffff"
+					android:textSize="17dip"></TextView>
+
+				<TextView
+					android:id="@+id/dataItem06r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="35"
+					android:textColor="#ffffff"
+					android:textSize="17dip"></TextView>
+			</LinearLayout>
+
+			<TextView
+				android:layout_width="fill_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginBottom="3dip"
+				android:background="#E0FFFF"
+				android:text=" "
+				android:textSize="1dp"></TextView>
+
+			<LinearLayout
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:orientation="horizontal">
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="· CPU : "
+					android:textColor="#ffffff"></TextView>
+
+				<TextView
+					android:id="@+id/tmp_txt1r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Busy("></TextView>
+
+				<TextView
+					android:id="@+id/dataItem01r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="30" />
+
+				<TextView
+					android:id="@+id/tmp_txt2r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="), IOw("></TextView>
+
+				<TextView
+					android:id="@+id/dataItem02r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="40" />
+
+				<TextView
+					android:id="@+id/tmp_txt3r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="), "></TextView>
+
+				<TextView
+					android:id="@+id/tmp_txt4r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Idle("></TextView>
+
+				<TextView
+					android:id="@+id/dataItem03r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="29" />
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text=")"></TextView>
+
+			</LinearLayout>
+
+			<LinearLayout
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:orientation="horizontal">
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="· Ctx SW : "
+					android:textColor="#ffffff"></TextView>
+
+				<TextView
+					android:id="@+id/dataItem04r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="1000"></TextView>
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text=" ("></TextView>
+
+				<TextView
+					android:id="@+id/dataItem05r"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="500"></TextView>
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text=")"></TextView>
+
+
+			</LinearLayout>
+
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="fill_parent"
+			android:layout_height="fill_parent"
+			android:gravity="right|center_vertical|center_horizontal"
+			android:orientation="vertical" />
+	</LinearLayout>
+
+
+	<TextView
+		android:id="@+id/list_last_line"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginLeft="10dip"
+		android:layout_marginRight="10dip"
+		android:background="#ffFFFF"
+		android:text=" "
+		android:textSize="1dp"
+
+		></TextView>
 
 </LinearLayout>
 
