@@ -2,23 +2,14 @@ package esos.MobiBench
 
 import android.annotation.TargetApi
 import android.app.Activity
-import android.app.AlertDialog
-import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.util.Log
 import android.view.KeyEvent
-import android.view.View
 import android.view.ViewGroup
 import android.view.Window
-import android.widget.Toast
-import esos.MobiBench.StorageOptions.GetFileSystemName
-import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -117,8 +108,6 @@ class DialogActivity : Activity() {
         list!!.setAdapter(adapter)
         setContentView(list, params)
         window.setFeatureInt(Window.FEATURE_CUSTOM_TITLE, R.layout.custome_title)
-        findViewById<View>(R.id.ibtn_share).setOnClickListener(myButtonClick)
-        findViewById<View>(R.id.ibtn_save).setOnClickListener(myButtonClick)
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         var ni = cm.getNetworkInfo(ConnectivityManager.TYPE_WIFI)
         isWifiAvail = ni!!.isAvailable
@@ -128,148 +117,9 @@ class DialogActivity : Activity() {
         isMobileConn = ni.isConnected
         if (check_using_db == 1) {
             if (isWifiConn || isMobileConn) {
-                val alert = AlertDialog.Builder(this)
-                    .setTitle("Send Results")
-                    .setMessage(
-                        """
-                        Submit the performance result to the ranking server for research purposes.
-                        (No personally identifiable information is collected.)
-                        """.trimIndent()
-                    )
-                    .setCancelable(true)
-                    .setPositiveButton(
-                        "Accept"
-                    ) { dialog, whichButton ->
-                        u_data = UpdateData()
-                        val tmp_string = arrayOfNulls<String>(7)
-                        for (k in 0..6) {
-                            if (bHasResult[k] == 1) {
-                                tmp_string[k] = ResultThrp[k]
-                            } else {
-                                tmp_string[k] = "-1"
-                            }
-                        }
-                        u_data!!.HttpPostData(
-                            tmp_string[0],
-                            tmp_string[1],
-                            tmp_string[2],
-                            tmp_string[3],
-                            tmp_string[4],
-                            tmp_string[5],
-                            tmp_string[6],
-                            dev_num,
-                            g_partition!!.substring(1),
-                            g_thread,
-                            g_file_size_w,
-                            g_file_size_r,
-                            g_io_size,
-                            g_file_mode,
-                            g_transaction_mode,
-                            g_sqlite_mode,
-                            g_sqlite_journal,
-                            GetFileSystemName(),
-                            g_def
-                        )
-                        Log.d(
-                            DEBUG_TAG,
-                            "DEFAULT : " + g_def
-                        )
-                        Toast.makeText(
-                            this@DialogActivity,
-                            "send result to server",
-                            Toast.LENGTH_SHORT
-                        )
-                            .show()
-                    }
-                    .setNegativeButton(
-                        "Decline"
-                    ) { dialog, whichButton -> }
-                    .show()
+                // Alert
             }
         }
-    }
-
-    var myButtonClick = View.OnClickListener { v ->
-        when (v.id) {
-            R.id.ibtn_share -> try {
-                screenshot()
-            } catch (e1: Exception) {
-                // TODO Auto-generated catch block
-                e1.printStackTrace()
-            }
-            R.id.ibtn_save -> {
-                val txtFilename = ResultDate + ".txt"
-                var txtPath: String
-                val ext = Environment.getExternalStorageState()
-                txtPath = if (ext == Environment.MEDIA_MOUNTED) {
-                    Environment.getExternalStorageDirectory().absolutePath + "/"
-                } else {
-                    Environment.MEDIA_UNMOUNTED + "/"
-                }
-                val txtDir = File("$txtPath/MobiBench/")
-                if (!txtDir.exists()) {
-                    txtPath = ""
-                    txtDir.mkdirs()
-                }
-                val tmp = clip_text
-                // 파일 생성
-                try {
-                    val txtFile = File(
-                        Environment.getExternalStorageDirectory().toString() + "/MobiBench/",
-                        txtFilename
-                    )
-                    txtFile.createNewFile()
-                    val out = BufferedWriter(FileWriter(txtFile))
-                    out.write(tmp)
-                    out.newLine()
-                    out.close()
-                } catch (e: IOException) {
-                }
-                val TotalPath = txtPath + "MobiBench/" + txtFilename
-                Toast.makeText(applicationContext, "File saved : $TotalPath", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    @Throws(Exception::class)
-    fun screenshot() {
-        val view = this.window.decorView // 전체 화면의 view를 가져온다
-        view.isDrawingCacheEnabled = true
-        val screenshot = view.drawingCache
-        val filename = ResultDate + ".jpg"
-        var Path: String
-        val ext = Environment.getExternalStorageState()
-        Path = if (ext == Environment.MEDIA_MOUNTED) {
-            Environment.getExternalStorageDirectory().absolutePath + "/"
-        } else {
-            Environment.MEDIA_UNMOUNTED + "/"
-        }
-        val dir = File("$Path/MobiBenchImage/")
-        if (!dir.exists()) {
-            Path = ""
-            dir.mkdirs()
-        }
-        try {
-            val f = File(
-                Environment.getExternalStorageDirectory().toString() + "/MobiBenchImage/",
-                filename
-            )
-            f.createNewFile()
-            val outStream: OutputStream = FileOutputStream(f)
-            screenshot.compress(Bitmap.CompressFormat.PNG, 100, outStream)
-            outStream.close()
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
-        view.isDrawingCacheEnabled = false
-        val sTotalPath =
-            Environment.getExternalStorageDirectory().toString() + "/MobiBenchImage/" + filename
-        val uri = Uri.fromFile(File(sTotalPath))
-        val shareIntent = Intent()
-        shareIntent.action = Intent.ACTION_SEND
-        shareIntent.putExtra(Intent.EXTRA_STREAM, uri)
-        shareIntent.type = "image/jpeg"
-        startActivity(Intent.createChooser(shareIntent, "공유하기"))
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {

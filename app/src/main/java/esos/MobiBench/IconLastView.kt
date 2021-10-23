@@ -2,12 +2,12 @@ package esos.MobiBench
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.view.LayoutInflater
 import android.view.View
-import android.view.View.OnClickListener
-import android.widget.*
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 
 
 @SuppressLint("ViewConstructor")
@@ -32,20 +32,7 @@ class IconLastView(var this_context: Context, aItem: IconTextItem) :
     private var pos: String? = null
 
     // private TextView line;
-    private val btn_webview: ImageButton
     private var clip_str: String? = null
-    var mClickListener = OnClickListener { v ->
-        when (v.id) {
-            R.id.ibtn_webview -> if (DialogActivity.isWifiConn || DialogActivity.isMobileConn) {
-                val intent = Intent(this_context, Webview::class.java)
-                DialogActivity.G_EXP_CHOICE = pos!!
-                this_context.startActivity(intent)
-            } else {
-                Toast.makeText(this_context, "Not connected to wifi or 3g/4g", Toast.LENGTH_SHORT)
-                    .show()
-            }
-        }
-    }
 
     /**
      * set Text
@@ -53,6 +40,7 @@ class IconLastView(var this_context: Context, aItem: IconTextItem) :
      * @param index
      * @param data
      */
+
     fun setText(index: Int, data: String?) {
         if (index == 0) {
             mText01r.text = data
@@ -126,7 +114,5 @@ class IconLastView(var this_context: Context, aItem: IconTextItem) :
         mText07r = findViewById<View>(R.id.dataItem07r) as TextView
         mText07r.text = aItem.getData(6)
         pos = aItem.getData(6)
-        btn_webview = findViewById<View>(R.id.ibtn_webview) as ImageButton
-        findViewById<View>(R.id.ibtn_webview).setOnClickListener(mClickListener)
     }
 }
