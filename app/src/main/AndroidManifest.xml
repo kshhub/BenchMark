@@ -21,7 +21,6 @@
         </activity>
         <activity android:name="esos.MobiBench.First" />
         <activity android:name="esos.MobiBench.DialogActivity" />
-        <activity android:name="esos.MobiBench.Webview" />
     </application>
 
 </manifest>

@@ -9,7 +9,6 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.graphics.drawable.AnimationDrawable
-import android.icu.text.IDNA
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.*
@@ -17,7 +16,6 @@ import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
-import androidx.annotation.RequiresApi
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.math.BigInteger
@@ -137,12 +135,6 @@ class TabMain : TabActivity() {
                 .setIndicator("", resources.getDrawable(R.drawable.tab_history))
                 .setContent(R.id.history)
         )
-        /*
-        tabHost.addTab(
-            tabHost.newTabSpec("setting")
-                .setIndicator("", resources.getDrawable(R.drawable.tab_help)).setContent(R.id.help)
-        )
-        */
 
         /* For Animation*/
 
@@ -418,12 +410,6 @@ class TabMain : TabActivity() {
             mClickListener
         )
         findViewById<View>(R.id.btn_all).setOnClickListener(mClickListener)
-
-        /* editV1
-        findViewById<View>(R.id.btn_file).setOnClickListener(mClickListener)
-        findViewById<View>(R.id.btn_sqlite).setOnClickListener(mClickListener)
-        findViewById<View>(R.id.btn_custom).setOnClickListener(mClickListener)
-         */
 
         /* ******************* */
         /*   Spinner Control   */
@@ -758,17 +744,6 @@ class TabMain : TabActivity() {
         }
     }
 
-    private fun checkbox_counting(): Boolean {
-        var can_run = false
-        can_run =
-            if (set.get_seq_write() || set.get_seq_read() || set.get_ran_write() || set.get_ran_read() || set.get_insert() || set.get_update() || set.get_delete()) {
-                true
-            } else {
-                false
-            }
-        return can_run
-    }
-
     /* Image button listener*/
     var mClickListener = View.OnClickListener { v ->
         //		Intent intent;
@@ -778,18 +753,6 @@ class TabMain : TabActivity() {
                 load_init()
             }
             R.id.btn_all -> startMobibenchExe(0)
-            /* editV1
-            R.id.btn_file -> startMobibenchExe(1)
-            R.id.btn_sqlite ->                //image.post(new StartAni());
-                // For Database
-                startMobibenchExe(2)
-            R.id.btn_custom ->                //image.post(new StartAni());
-                if (btn_clk_check == true && checkbox_counting() == false) {
-                    print_exp(4)
-                } else {
-                    startMobibenchExe(3)
-                }
-            */
         }
     }
 
@@ -924,25 +887,6 @@ class TabMain : TabActivity() {
         editor!!.putBoolean("p_cb_update", false)
         editor!!.putBoolean("p_cb_delete", false)
         editor!!.commit()
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        val inflater = menuInflater
-        inflater.inflate(R.menu.menu, menu)
-        return true
-    }
-
-    @RequiresApi(Build.VERSION_CODES.N)
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        val intent: Intent
-        when (item.itemId) {
-            R.id.menu_info -> {
-                intent = Intent(this@TabMain, IDNA.Info::class.java)
-                startActivity(intent)
-                return true
-            }
-        }
-        return false
     }
 
     fun print_error(type: Int) {
