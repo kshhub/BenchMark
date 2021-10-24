@@ -8,6 +8,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.database.Cursor
+import android.graphics.Color
 import android.graphics.drawable.AnimationDrawable
 import android.net.ConnectivityManager
 import android.net.Uri
@@ -135,9 +136,21 @@ class TabMain : TabActivity() {
                 .setIndicator("", resources.getDrawable(R.drawable.tab_history))
                 .setContent(R.id.history)
         )
+        for(tab in 0 until tabHost.tabWidget.childCount){
+            tabHost.tabWidget.getChildAt(tab).setBackgroundColor(Color.parseColor("#B5E61D"))
+        }
+        tabHost.tabWidget.getChildAt(0).setBackgroundColor(Color.parseColor("#CDDF94"))
+        tabHost.setOnTabChangedListener {
+            if(tabHost.currentTab == 0){
+                tabHost.tabWidget.getChildAt(0).setBackgroundColor(Color.parseColor("#CDDF94"))
+                tabHost.tabWidget.getChildAt(1).setBackgroundColor(Color.parseColor("#B5E61D"))
+            }else{
+                tabHost.tabWidget.getChildAt(1).setBackgroundColor(Color.parseColor("#CDDF94"))
+                tabHost.tabWidget.getChildAt(0).setBackgroundColor(Color.parseColor("#B5E61D"))
+            }
+        }
 
         /* For Animation*/
-
         image = findViewById<View>(R.id.position_mea) as ImageView
         image!!.setBackgroundResource(R.drawable.aniimage)
         anidrawable = image!!.background as AnimationDrawable
