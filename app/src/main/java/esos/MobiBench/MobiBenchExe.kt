@@ -208,56 +208,6 @@ class MobiBenchExe : Thread {
         RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.DELETE)
     }
 
-    fun RunCustom() {
-        var is_error = 0
-        val set = Setting()
-        if (set.get_seq_write() == true) {
-            RunMobibench(eAccessMode.WRITE, eDbEnable.DB_DISABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_seq_read() == true) {
-            RunMobibench(eAccessMode.READ, eDbEnable.DB_DISABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_ran_write() == true) {
-            RunMobibench(eAccessMode.RANDOM_WRITE, eDbEnable.DB_DISABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_ran_read() == true) {
-            RunMobibench(eAccessMode.RANDOM_READ, eDbEnable.DB_DISABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_insert() == true) {
-            RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_update() == true) {
-            RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.UPDATE)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_delete() == true) {
-            RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.DELETE)
-        }
-    }
-
     var runflag = false
 
     inner class ProgThread : Thread() {

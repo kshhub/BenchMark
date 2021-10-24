@@ -23,8 +23,6 @@ class DialogActivity : Activity() {
     private val calendar = Calendar.getInstance()
     private val dateFormat = SimpleDateFormat("yyyyMMdd_HH_mm_ss")
     private val dateFormat_file = SimpleDateFormat("yyyyMMdd_HHmm")
-    private val bm: Bitmap? = null
-    private var u_data: UpdateData? = null
     public override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestWindowFeature(Window.FEATURE_CUSTOM_TITLE)

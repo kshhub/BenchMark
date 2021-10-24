@@ -5,7 +5,6 @@ import android.os.StatFs
 import java.io.File
 import java.util.*
 
-
 object StorageOptions {
     private val mMounts = ArrayList<String>()
     private val mVold = ArrayList<String>()

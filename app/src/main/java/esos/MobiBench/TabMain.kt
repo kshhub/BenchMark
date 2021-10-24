@@ -29,8 +29,6 @@ import java.util.*
 class TabMain : TabActivity() {
     // for update version check
     private var mResult: String? = "1"
-    private var sVersion = 0
-    private var sMyVersion = 0
     private var prefs: SharedPreferences? = null
     private var editor: SharedPreferences.Editor? = null
     private var db_index = 0
@@ -271,99 +269,7 @@ class TabMain : TabActivity() {
             startActivityForResult(Intent(this@TabMain, First::class.java), 0)
         } else {
             load_init()
-
-            // for version check and update this app.
-            try {
-                val url = URL("http://mobibench.dothome.co.kr/mobibench_ver.html")
-                val conn = url.openConnection() as HttpURLConnection
-                if (conn != null) {
-                    conn.connectTimeout = 10000
-                    conn.useCaches = false
-                    if (conn.responseCode == HttpURLConnection.HTTP_OK) {
-                        val br = BufferedReader(
-                            InputStreamReader(conn.inputStream)
-                        )
-                        var bVersion = false
-                        while (true) {
-                            val line = br.readLine()
-                            Log.d(DEBUG_TAG, "line$line")
-                            if (bVersion) {
-                                mResult = line
-                                Log.d(
-                                    DEBUG_TAG,
-                                    "get mResult$mResult"
-                                )
-                                break
-                            }
-                            if (line == "version:") {
-                                bVersion = true
-                            }
-                            if (line == null) {
-                                break
-                            }
-                        }
-                        br.close()
-                    }
-                    conn.disconnect()
-                }
-            } catch (e: Exception) {
-            }
-            sVersion = mResult!!.toInt()
-            try {
-                val i_tmp = this.packageManager.getPackageInfo(this.packageName, 0)
-                sMyVersion = i_tmp.versionCode
-            } catch (e: PackageManager.NameNotFoundException) {
-            }
-            val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-            var ni = cm.getNetworkInfo(ConnectivityManager.TYPE_WIFI)
-            val isWifiAvail = ni!!.isAvailable
-            val isWifiConn = ni.isConnected
-            ni = cm.getNetworkInfo(ConnectivityManager.TYPE_MOBILE)
-            val isMobileAvail = ni!!.isAvailable
-            val isMobileConn = ni.isConnected
-            val status = """
-                WiFi
-                Avail = $isWifiAvail
-                Conn = $isWifiConn
-                Mobile
-                Avail = $isMobileAvail
-                Conn = $isMobileConn
-                
-                """.trimIndent()
-            if (isWifiConn || isMobileConn) {
-                if (sVersion != sMyVersion) {
-                    Log.d(DEBUG_TAG, "update sVersion is $sVersion")
-                    Log.d(
-                        DEBUG_TAG,
-                        "update sMyVersion is $sMyVersion"
-                    )
-                    val alert = AlertDialog.Builder(this)
-                        .setTitle("Notice.")
-                        .setMessage("Your Mobibench is not the latest version. Do you want to update your app?")
-                        .setCancelable(true)
-                        .setPositiveButton(
-                            "Update"
-                        ) { dialog, whichButton ->
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("market://details?id=esos.MobiBench")
-                            )
-                            startActivity(intent)
-                        }
-                        .setNegativeButton(
-                            "Later"
-                        ) { dialog, whichButton -> }
-                        .show()
-                }
-            }
         }
-        var target_path: String? = null
-        when (set.get_target_partition()) {
-            0 -> target_path = Environment.getDataDirectory().path
-            1 -> target_path = Environment.getExternalStorageDirectory().path
-            2 -> target_path = MobiBenchExe.sdcard_2nd_path
-        }
-
 
         // Activity가 실행 중인 동안 화면을 밝게 유지합니다.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -438,14 +344,6 @@ class TabMain : TabActivity() {
 
         Log.d(DEBUG_TAG, "[JWGOM] start")
         Log.d(DEBUG_TAG, "[JWGOM] end1")
-        set.set_seq_write(prefs!!.getBoolean("p_cb_sw", false))
-        set.set_seq_read(prefs!!.getBoolean("p_cb_sr", false))
-        set.set_ran_write(prefs!!.getBoolean("p_cb_rw", false))
-        set.set_ran_read(prefs!!.getBoolean("p_cb_rr", false))
-        set.set_insert(prefs!!.getBoolean("p_cb_insert", false))
-        set.set_update(prefs!!.getBoolean("p_cb_update", false))
-        set.set_delete(prefs!!.getBoolean("p_cb_delete", false))
-        set.set_cb_count(prefs!!.getInt("p_cb_count", 0))
         //Toast.makeText(this, "load init cb count "+ set.get_cb_count() , Toast.LENGTH_SHORT).show();
         Log.d(DEBUG_TAG, "[JWGOM] end")
         //print_values();
@@ -471,15 +369,7 @@ class TabMain : TabActivity() {
         editor!!.putInt("p_journal_mode", 1)
         set.set_journal_mode(1)
         editor!!.putInt("p_cb_count", 0)
-        set.set_cb_count(0)
 
-        /* Checkbox */set.set_seq_write(false)
-        set.set_seq_read(false)
-        set.set_ran_write(false)
-        set.set_ran_read(false)
-        set.set_insert(false)
-        set.set_update(false)
-        set.set_delete(false)
         editor!!.putBoolean("p_cb_sw", false)
         editor!!.putBoolean("p_cb_sr", false)
         editor!!.putBoolean("p_cb_rw", false)
@@ -524,8 +414,6 @@ class TabMain : TabActivity() {
         override fun run() {
             anidrawable!!.start()
         }
-
-        fun stop() {}
     }
 
     companion object {
@@ -535,23 +423,9 @@ class TabMain : TabActivity() {
         private const val DEBUG_TAG = "progress bar"
         var prBar: ProgressBar? = null
         private var btn_clk_check = true
-        private var free_suffix: String? = null
-        var g_animation = true
-        const val PROGRESS_DIALOG = 0
+
 
         // For Database
         var dbAdapter: NotesDbAdapter? = null
-        fun getMD5Hash(s: String): String? {
-            var m: MessageDigest? = null
-            var hash: String? = null
-            try {
-                m = MessageDigest.getInstance("MD5")
-                m.update(s.toByteArray(), 0, s.length)
-                hash = BigInteger(1, m.digest()).toString(16)
-            } catch (e: NoSuchAlgorithmException) {
-                e.printStackTrace()
-            }
-            return hash
-        }
     }
 }
