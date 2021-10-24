@@ -69,6 +69,7 @@ class MobiBenchExe : Thread {
                     con!!.startActivity(intent)
                 }
             }
+            DialogActivity.check_using_db = 1
         }
         DeleteDir(exe_path)
         msg = Message.obtain(mHandler, 444, is_error, 0, null)
