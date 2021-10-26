@@ -5,7 +5,19 @@
  * History
  * 2012. 1 created by Kisung Lee <kisunglee@hanyang.ac.kr>
  * 2012. 8 modified by Sooman Jeong <77smart@hanyang.ac.kr>
- *
+ * Jun 03, 2013 version 1.0.0 by Sooman Jeong
+ * Jul 02, 2013 forced checkpointing for WAL mode by Sooman Jeong
+ * Aug 22, 2013 fix buffer-overflow on replaying mobigen script by Sooman Jeong [version 1.0.1]
+ * Dec 31, 2013 Modified to print Write error code by Seongjin Lee [version 1.0.11]
+ * Mar 26, 2014 Collect latency data for each I/O by Seongjin Lee [version 1.0.2]
+ * Nov 20, 2014 Print IOPS on every second by Seongjin Lee [version 1.0.3]
+ * Nov 20, 2014 Percentage overlap in Random workload by Jinsoo Yoo [version 1.0.4]
+ * Mar 28, 2015 fdatasync sync mode for file write by Hankeun Son [version 1.0.5]
+ * Jun 26, 2017 Modified to extend the minimum database size by Sundoo Kim [version 1.0.6]
+ * Jul 06, 2017 Appended "-T" option to be passed number of table as an argument by Sundoo Kim [version 1.0.7]
+ * Jul 09, 2017 Modified sequential primary key value to random primary value by Sundoo Kim [version 1.0.8]
+ * Apr 15, 2019 Appended "-T" option to be passed number of databases as an argument by Joontaek Oh [version 1.0.81]
+ * May 06, 2020 Appended new access mode, "append", which is allocating sequential write by Joontaek Oh [version 1.0.9]
  */
 
 #include <stdio.h>
@@ -18,22 +30,26 @@
 #define __USE_GNU
 #include <fcntl.h>
 #include <time.h>
-#include <string.h> 
+#include <string.h>
 
 #include <sys/mman.h>
 #include <errno.h>
 #include <pthread.h>
 #include <sys/syscall.h>
+#include <dirent.h>
+
 
 /* for sqlite3 */
 #include "sqlite3.h"
+
+#define VERSION_NUM	"1.0.8"
 
 //#define DEBUG_SCRIPT
 
 #ifdef DEBUG_SCRIPT
 #define SCRIPT_PRINT printf
 #else
-#define SCRIPT_PRINT(fmt,args...) 
+#define SCRIPT_PRINT(fmt,args...)
 #endif
 
 #ifdef ANDROID_APP
@@ -57,16 +73,16 @@ float tps = 0;
 #define SIZE_4KB 4096
 #define SIZE_1KB 1024
 #define MAX_THREADS 100
-
-#define INSERT_STR "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjjjjjjjj"
-#define UPDATE_STR "ffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjjjjjjjjaaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee"
-
+#define MIN_DATABASE_SIZE 40*1024 /*Database minimum default size is 80KB for updating or deleting operation */
+#define RECORD_PAGE_COUNT 37
+#define MIN_CHECK ((MIN_DATABASE_SIZE/SIZE_4KB)-2)*RECORD_PAGE_COUNT /*Database minimum size check*/
 typedef enum
 {
   MODE_WRITE,
   MODE_RND_WRITE,
   MODE_READ,
   MODE_RND_READ,
+  MODE_APPEND,
 } file_test_mode_t;
 
 typedef enum
@@ -79,6 +95,7 @@ typedef enum
   MMAP,
   MMAP_AS,
   MMAP_S,
+  FDATASYNC,
 } file_sync_mode_t;
 
 typedef enum
@@ -139,6 +156,7 @@ int db_transactions;
 int db_journal_mode;
 int db_sync_mode;
 int db_init_show = 0;
+int db_interval = 0;
 int g_state = 0;
 char* g_err_string;
 int b_quiet = 0;
@@ -151,7 +169,16 @@ struct script_fd_conv gScriptFdConv = {0, };
 long long time_start;
 char* script_write_buf;
 char* script_read_buf;
-
+int Latency_state = 0; // flag for printing latency
+FILE* Latency_fp; // latency output
+char REPORT_Latency[200]; // file name for latency output
+int print_IOPS = 0; // flag for printing IOPS every second
+FILE* pIOPS_fp; // output for print IOPS every second
+char REPORT_pIOPS[200]; // file name for IOPS output
+int numberOfTable; // number of table
+int numberOfDB; // number of DB
+int overlap_ratio = 0; // overlap ratio for random write
+char random_insert; // random_insert flag
 thread_status_t thread_status[MAX_THREADS] = {0, };
 pthread_mutex_t thread_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t thread_cond1 = PTHREAD_COND_INITIALIZER;
@@ -159,6 +186,12 @@ pthread_cond_t thread_cond2 = PTHREAD_COND_INITIALIZER;
 pthread_cond_t thread_cond3 = PTHREAD_COND_INITIALIZER;
 
 pthread_mutex_t fd_lock = PTHREAD_MUTEX_INITIALIZER;
+
+long long get_current_utime(void); // get current time
+long long get_relative_utime(long long start); // and relative time
+
+unsigned char INSERT_STR[] = "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjjjjjjjj";
+unsigned char UPDATE_STR[] = "ffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjjjjjjjjaaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee";
 
 void clearState(void)
 {
@@ -189,9 +222,9 @@ void print_time(struct timeval T1, struct timeval T2)
 	long sec,usec;
 	double time;
 	double rate;
-	
+
 	time_t t;
-	
+
 	if(T1.tv_usec > T2.tv_usec)
 	{
 		sec = T2.tv_sec - T1.tv_sec -1;
@@ -204,14 +237,16 @@ void print_time(struct timeval T1, struct timeval T2)
 	}
 
 	time = (double)sec + (double)usec/1000000;
-	
+
 	if(db_test_enable == 0)
 	{
 		rate = kilo64*1024*num_threads/time;
 		printf("[TIME] :%8ld sec %06ldus. \t%.0f B/sec, \t%.2f KB/sec, \t%.2f MB/sec.",sec,usec, rate, rate/1024, rate/1024/1024);
+		if(Latency_state==1) fprintf(Latency_fp,"[TIME] :%8ld sec %06ldus. \t%.0f B/sec, \t%.2f KB/sec, \t%.2f MB/sec.",sec, usec, rate, rate/1024, rate/1024/1024);
 		if(g_access == MODE_RND_WRITE || g_access == MODE_RND_READ)
 		{
 			printf(" %.2f IOPS(%dKB) ", rate/1024/reclen, (int)reclen);
+			if(Latency_state==1) fprintf(Latency_fp," %.2f IOPS(%dKB) ", rate/1024/reclen, (int)reclen);
 		}
 		printf("\n");
 #ifdef ANDROID_APP
@@ -231,54 +266,54 @@ void print_time(struct timeval T1, struct timeval T2)
 		printf("[TIME] :%8ld sec %06ldus. \t%.2f Transactions/sec\n",sec,usec, rate);
 #ifdef ANDROID_APP
 		tps = (float)rate;
-#endif		
+#endif
 	}
-	
+
 }
 
-#define DEF_PROCSTAT_BUFFER_SIZE (1 << 10) /* 1 KBytes (512 + 512 ^^) */ 
+#define DEF_PROCSTAT_BUFFER_SIZE (1 << 10) /* 1 KBytes (512 + 512 ^^) */
 
 #define START_CPU_CHECK 0
 #define END_CPU_CHECK 1
 
-unsigned long s_CPUTick[2][6]; 
+unsigned long s_CPUTick[2][6];
 
 void cpuUsage(int startEnd)
 {
-	const char *s_ProcStat = "/proc/stat"; 
-	const char *s_CPUName = "cpu "; 
-	int s_Handle, s_Check, s_Count; 
-	char s_StatBuffer[ DEF_PROCSTAT_BUFFER_SIZE ]; 
-	char *s_String; 
-	float s_DiffTotal; 
+	const char *s_ProcStat = "/proc/stat";
+	const char *s_CPUName = "cpu ";
+	int s_Handle, s_Check, s_Count;
+	char s_StatBuffer[ DEF_PROCSTAT_BUFFER_SIZE ];
+	char *s_String;
+	float s_DiffTotal;
 	unsigned long active_tick, idle_tick, wait_tick;
-	
-		s_Handle = open(s_ProcStat, O_RDONLY); 
-		
-		if(s_Handle >= 0) 
-		{ 
-				s_Check = read(s_Handle, &s_StatBuffer[0], sizeof(s_StatBuffer) - 1); 
-			
-				s_StatBuffer[s_Check] = '\0'; 
 
-				s_String = strstr(&s_StatBuffer[0], s_CPUName); /* Total CPU entry */ 
-				
+		s_Handle = open(s_ProcStat, O_RDONLY);
+
+		if(s_Handle >= 0)
+		{
+				s_Check = read(s_Handle, &s_StatBuffer[0], sizeof(s_StatBuffer) - 1);
+
+				s_StatBuffer[s_Check] = '\0';
+
+				s_String = strstr(&s_StatBuffer[0], s_CPUName); /* Total CPU entry */
+
 				//printf("s_String=%s\n", s_String);
 
-				if(s_String) 
-				{ 
+				if(s_String)
+				{
 
-					s_Check = sscanf(s_String, "cpu %lu %lu %lu %lu %lu", &s_CPUTick[startEnd][0], &s_CPUTick[startEnd][1], &s_CPUTick[startEnd][2], &s_CPUTick[startEnd][3], &s_CPUTick[startEnd][4]); 
+					s_Check = sscanf(s_String, "cpu %lu %lu %lu %lu %lu", &s_CPUTick[startEnd][0], &s_CPUTick[startEnd][1], &s_CPUTick[startEnd][2], &s_CPUTick[startEnd][3], &s_CPUTick[startEnd][4]);
 
 					//printf("s_Check=%d\n", s_Check);
 
-					if(s_Check == 5) 
-					{ 
+					if(s_Check == 5)
+					{
 
 						for(s_Count = 0, s_CPUTick[startEnd][5] = 0lu; s_Count < 5;s_Count++)
-							s_CPUTick[startEnd][5] += s_CPUTick[startEnd][s_Count]; 
+							s_CPUTick[startEnd][5] += s_CPUTick[startEnd][s_Count];
 					}
-					
+
 					//printf("[CPU] 0=%ld, 1=%ld, 2=%ld, 3=%ld, 4=%ld, \n", s_CPUTick[startEnd][0], s_CPUTick[startEnd][1], s_CPUTick[startEnd][2], s_CPUTick[startEnd][3], s_CPUTick[startEnd][4]);
 				}
 		}
@@ -287,29 +322,29 @@ void cpuUsage(int startEnd)
 			printf("%s open failed.\n", s_ProcStat);
 			return;
 		}
-		
+
 		//printf("[CPU] 0=%ld, 1=%ld, 2=%ld, 3=%ld, 4=%ld, \n", s_CPUTick[startEnd][0], s_CPUTick[startEnd][1], s_CPUTick[startEnd][2], s_CPUTick[startEnd][3], s_CPUTick[startEnd][4]);
-		
+
 		if(startEnd == END_CPU_CHECK)
 		{
-			s_DiffTotal = (float)(s_CPUTick[END_CPU_CHECK][5] - s_CPUTick[START_CPU_CHECK][5]); 
+			s_DiffTotal = (float)(s_CPUTick[END_CPU_CHECK][5] - s_CPUTick[START_CPU_CHECK][5]);
 			active_tick = (s_CPUTick[END_CPU_CHECK][0] - s_CPUTick[START_CPU_CHECK][0]) + (s_CPUTick[END_CPU_CHECK][1] - s_CPUTick[START_CPU_CHECK][1]) + (s_CPUTick[END_CPU_CHECK][2] - s_CPUTick[START_CPU_CHECK][2]);
 			idle_tick = (s_CPUTick[END_CPU_CHECK][3] - s_CPUTick[START_CPU_CHECK][3]);
 			wait_tick = (s_CPUTick[END_CPU_CHECK][4] - s_CPUTick[START_CPU_CHECK][4]);
-						
+
 			//printf("[CPU TICK] Active=%ld, Idle=%ld, IoWait=%ld\n",active_tick, idle_tick, wait_tick);
 			printf("[CPU] : Active,Idle,IoWait : %1.2f %1.2f %1.2f\n",
 							(float)( (float)(active_tick * 100lu) / s_DiffTotal ),
-							(float)( (float)(idle_tick * 100lu) / s_DiffTotal ), 
-							(float)( (float)(wait_tick * 100lu) / s_DiffTotal ) ); 
+							(float)( (float)(idle_tick * 100lu) / s_DiffTotal ),
+							(float)( (float)(wait_tick * 100lu) / s_DiffTotal ) );
 #ifdef ANDROID_APP
 			cpu_active = (float)( (float)(active_tick * 100lu) / s_DiffTotal );
 			cpu_idle = (float)( (float)(idle_tick * 100lu) / s_DiffTotal );
 			cpu_iowait = (float)( (float)(wait_tick * 100lu) / s_DiffTotal );
 #endif
 		}
-		
-		close(s_Handle);			
+
+		close(s_Handle);
 }
 
 #define NN 312
@@ -320,14 +355,14 @@ void cpuUsage(int startEnd)
 
 
 /* The array for the state vector */
-static unsigned long long mt[NN]; 
+static unsigned long long mt[NN];
 /* mti==NN+1 means mt[NN] is not initialized */
-static int mti=NN+1; 
+static int mti=NN+1;
 
 void init_genrand64(unsigned long long seed)
 {
     mt[0] = seed;
-    for (mti=1; mti<NN; mti++) 
+    for (mti=1; mti<NN; mti++)
         mt[mti] =  (6364136223846793005ULL * (mt[mti-1] ^ (mt[mti-1] >> 62)) + mti);
 }
 
@@ -341,8 +376,8 @@ unsigned long long genrand64_int64(void)
 
         /* if init_genrand64() has not been called, */
         /* a default initial seed is used     */
-        if (mti == NN+1) 
-            init_genrand64(5489ULL); 
+        if (mti == NN+1)
+            init_genrand64(5489ULL);
 
         for (i=0;i<NN-MM;i++) {
             x = (mt[i]&UM)|(mt[i+1]&LM);
@@ -357,7 +392,7 @@ unsigned long long genrand64_int64(void)
 
         mti = 0;
     }
-  
+
     x = mt[mti++];
 
     x ^= (x >> 29) & 0x5555555555555555ULL;
@@ -389,7 +424,7 @@ void init_by_array64(unsigned long long init_key[],
         if (i>=NN) { mt[0] = mt[NN-1]; i=1; }
     }
 
-    mt[0] = 1ULL << 63; /* MSB is 1; assuring non-zero initial array */ 
+    mt[0] = 1ULL << 63; /* MSB is 1; assuring non-zero initial array */
 }
 
 char j_p_name[100] = {0, };
@@ -415,7 +450,7 @@ void get_con_switches()
 void print_con_switches()
 {
 
-//	int i;	
+//	int i;
 //	for(i =0 ; i< storage_count ; i++)
 //		printf("%d [th] \t\t N1 %u \t\t N2 %u \n",i/2,storage_switches[0][i],storage_switches[1][i]);
 
@@ -434,9 +469,9 @@ int single_get_nr_switches(void)
 	char j_buf[3072], *j_token[2];
 	char j_dummy[128];
 	int ret;
-	
+
 	j_context_fd = open(j_p_name, O_RDONLY);
-	
+
 	if(j_context_fd < 0)
 	{
 		printf("\n\n open %s, FD: %d\n\n", j_p_name, j_context_fd);
@@ -482,20 +517,20 @@ initfile(int fd, long long filebytes,int flag,int prot, int reclen)
 	 if(flag)
 	 {
 
-	 	/* 
-		  * Allocate a temporary buffer to meet any alignment 
+	 	/*
+		  * Allocate a temporary buffer to meet any alignment
 		  * contraints of any method.
 		  */
 		 tmp=(char *)malloc((size_t)reclen * 2);
 		 stmp=tmp;
-		 /* 
+		 /*
 		  * Align to a reclen boundary.
 		  */
 		 tmp = (char *)((((long)tmp + (long)reclen))& ~(((long)reclen-1)));
-		/* 
-		 * Special case.. Open O_DIRECT, and going to be mmap() 
-		 * Under Linux, one can not create a sparse file using 
-		 * a file that is opened with O_DIRECT 
+		/*
+		 * Special case.. Open O_DIRECT, and going to be mmap()
+		 * Under Linux, one can not create a sparse file using
+		 * a file that is opened with O_DIRECT
 		 */
 	 	file_flags=fcntl(fd,F_GETFL);
 
@@ -522,7 +557,7 @@ initfile(int fd, long long filebytes,int flag,int prot, int reclen)
 	else
 		mflags=MAP_FILE|MAP_PRIVATE;
 
-	 pa = (char *)mmap( ((char *)0),filebytes, prot, 
+	 pa = (char *)mmap( ((char *)0),filebytes, prot,
 	 		mflags, fd, 0);
 
 	if(pa == (char *)-1)
@@ -543,7 +578,7 @@ void
 mmap_end( char *buffer, long long size)
 {
 	if(munmap(buffer,(size_t)size)<0)
-		printf("munmap failed.\n");	
+		printf("munmap failed.\n");
 }
 
 void wait_thread_status(int thread_num, thread_status_t stat, pthread_cond_t* cond)
@@ -553,7 +588,7 @@ void wait_thread_status(int thread_num, thread_status_t stat, pthread_cond_t* co
 	int wait = 0;
 
 //	printf("%s, %d, %d start\n", __func__, thread_num, stat);
-	
+
 	ret = pthread_mutex_lock(&thread_lock);
 	if(ret < 0)
 	{
@@ -562,10 +597,10 @@ void wait_thread_status(int thread_num, thread_status_t stat, pthread_cond_t* co
 		setState(ERROR, "pthread_mutex_lock failed");
 		return;
 	}
-	
+
 	while(1)
 	{
-		
+
 		if(thread_num < 0)
 		{
 			for(i = 0; i < num_threads; i++)
@@ -580,7 +615,7 @@ void wait_thread_status(int thread_num, thread_status_t stat, pthread_cond_t* co
 			if(wait)
 				wait = 0;
 			else
-				break;			
+				break;
 		}
 		else
 		{
@@ -597,7 +632,7 @@ void wait_thread_status(int thread_num, thread_status_t stat, pthread_cond_t* co
 			return;
 		}
 	}
-	
+
 	ret = pthread_mutex_unlock(&thread_lock);
 	if(ret < 0)
 	{
@@ -618,7 +653,7 @@ void signal_thread_status(int thread_num, thread_status_t stat, pthread_cond_t* 
 	int i;
 
 //	printf("%s, %d, %d start\n", __func__, thread_num, stat);
-	
+
 	ret = pthread_mutex_lock(&thread_lock);
 	if(ret < 0)
 	{
@@ -634,26 +669,26 @@ void signal_thread_status(int thread_num, thread_status_t stat, pthread_cond_t* 
 		{
 			thread_status[i] = stat;
 		}
-		ret = pthread_cond_broadcast(cond);			
+		ret = pthread_cond_broadcast(cond);
 		if(ret < 0)
 		{
 			perror("pthread_cond_broadcast failed");
 			//exit(EXIT_FAILURE);
 			setState(ERROR, "pthread_cond_broadcast failed");
 			return;
-		}		
+		}
 	}
 	else
-	{		
+	{
 		thread_status[thread_num] = stat;
-		ret = pthread_cond_signal(cond);	
+		ret = pthread_cond_signal(cond);
 		if(ret < 0)
 		{
 			perror("pthread_cond_signal failed");
 			//exit(EXIT_FAILURE);
 			setState(ERROR, "pthread_cond_signal failed");
 			return;
-		}		
+		}
 	}
 
 	ret = pthread_mutex_unlock(&thread_lock);
@@ -663,7 +698,7 @@ void signal_thread_status(int thread_num, thread_status_t stat, pthread_cond_t* 
 		//exit(EXIT_FAILURE);
 		setState(ERROR, "pthread_mutex_unlock failed");
 		return;
-	}		
+	}
 
 //	printf("%s, %d, %d end\n", __func__, thread_num, stat);
 
@@ -690,6 +725,26 @@ void show_progress(int pro)
 }
 #endif
 
+void show_progress_IOPS(int pro, int IOC)
+{
+	static int old_pro = -1;
+	static int old_IOC = -1;
+
+	if(b_quiet) return;
+
+	if(old_pro == pro || old_IOC == IOC) return;
+	//if(old_pro == pro ) return;
+
+	old_pro = pro;
+        old_IOC = IOC;
+	if (g_access == MODE_RND_WRITE || g_access == MODE_RND_READ)
+		printf("%02d%c\t\t%d\t%s\r", pro, '%', IOC, "IOPS");
+	else if (g_access == MODE_WRITE || g_access == MODE_READ || g_access == MODE_APPEND)
+		printf("%02d%c\t\t%d\t%s\r", pro, '%', IOC, "KB/sec");
+
+	fflush(stdout);
+}
+
 void drop_caches(void)
 {
 #ifndef ANDROID_APP
@@ -715,19 +770,19 @@ int init_file(char* filename, long long size)
 	int rest_size = size - (rec_len*num_rec);
 	int open_flags = O_RDWR | O_CREAT;
 
-	printf("%s\n", __func__);
-	printf("size : %d\n", (int)size);
-	printf("num_rec : %d\n", num_rec);
-	printf("rest_size : %d\n", rest_size);
+	//printf("%s\n", __func__);
+	//printf("size : %d\n", (int)size);
+	//printf("num_rec : %d\n", num_rec);
+	//printf("rest_size : %d\n", rest_size);
 
 #ifdef ANDROID_APP
 	if(g_access == MODE_RND_WRITE)
 	{
-		//open_flags |= O_DIRECT;
+		open_flags |= O_DIRECT;
 	}
 #endif
 
-	fd = open(filename, open_flags, 0766);	
+	fd = open(filename, open_flags, 0766);
 	if(fd < 0)
 	{
 		printf("%s Open failed %d\n", filename, ret);
@@ -742,23 +797,23 @@ int init_file(char* filename, long long size)
 	memset(buf, 0xcafe, 512*1024);
 
 	for(i=0; i<num_rec; i++)
-	{		
+	{
 		if(write(fd, buf, rec_len)<0)
 		{
-			printf("File write error!!!\n");
+			printf("\nFile write error!!! [no: %d, pos: %lu]\n", errno, lseek(fd, 0, SEEK_CUR)/1024 );
 			//exit(1);
 			setState(ERROR, "File write error");
 			return -1;
 		}
 
 		show_progress(100*i/num_rec);
-	}	
+	}
 
 	if(rest_size)
 	{
 		if(write(fd, buf, rest_size)<0)
 		{
-			printf("File write error!!!\n");
+			printf("\nFile write error!!! [no: %d, pos: %lu]\n", errno, lseek(fd, 0, SEEK_CUR)/1024 );
 			//exit(1);
 			setState(ERROR, "File write error");
 			return -1;
@@ -772,7 +827,7 @@ int init_file(char* filename, long long size)
 	show_progress(100);
 
 	//printf("\ninit end\n");
-	
+
 	free(buf);
 
 	return 0;
@@ -789,6 +844,7 @@ int thread_main(void* arg)
 	unsigned long long length=4;
 
 	long long *recnum= 0;
+	long long *tmp_recnum= 0;
 	long long i;
 	unsigned long long big_rand;
 	long long offset;
@@ -799,6 +855,13 @@ int thread_main(void* arg)
 	int block_open = 0;
 	int page_size;
 	int open_flags = 0;
+
+	long long IO_Latency;      // start time for measuring IO latency
+	long long Delta_Latency;   // Delta time current_time - IO_Latency
+	long long second_hand = 0;     // cumulative Delta_Latency to measure IOPS
+	long long IO_Count = 0;              // IO counts in a second
+	if(Latency_state==1) fprintf(Latency_fp,"\n#In %d IO mode and %d sync mode\n",g_access, g_sync); // latency header
+	if(print_IOPS==1) fprintf(pIOPS_fp,"\n#In %d IO mode and %d sync mode\n",g_access, g_sync); // IOPS print header
 
 	struct stat sb;
 
@@ -820,7 +883,7 @@ int thread_main(void* arg)
 	if(block_open == 1)
 	{
 		sprintf(filename, "%s", pathname);
-		printf("open block device : %s\n", filename);		
+		printf("open block device : %s\n", filename);
 	}
 	else
 	{
@@ -831,14 +894,50 @@ int thread_main(void* arg)
 	init_by_array64(init, length);
 
 	recnum = (long long *)malloc(sizeof(*recnum)*numrecs64);
+	tmp_recnum = (long long *)malloc(sizeof(*recnum)*numrecs64);
 
-	if (recnum){
-		/* pre-compute random sequence based on 
+	if(tmp_recnum == NULL || recnum == NULL){
+		fprintf(stderr,"Random uniqueness fallback.\n");
+	}
+	else{
+		long long n_overlap_entries = numrecs64 * overlap_ratio / 100;
+		long long n_other_entries = numrecs64 - n_overlap_entries;
+
+		/* pre-compute random sequence based on
 		Fischer-Yates (Knuth) card shuffle */
-		for(i = 0; i < numrecs64; i++){
-			recnum[i] = i;
+
+		// initializing the array of random numbers
+		if(n_overlap_entries == 0){
+			for(i = 0; i < numrecs64; i++){
+				recnum[i] = i;
+			}
 		}
-		for(i = 0; i < numrecs64; i++) {
+		else{
+			for(i = 0; i < numrecs64; i++){ // initialization
+				tmp_recnum[i] = i;
+			}
+			for(i = 0; i < numrecs64; i++) { // shuffling the array
+				long long tmp;
+
+				big_rand=genrand64_int64();
+
+				big_rand = big_rand%numrecs64;
+				tmp = tmp_recnum[i];
+				tmp_recnum[i] = tmp_recnum[big_rand];
+				tmp_recnum[big_rand] = tmp;
+			}
+			for(i = 0; i < n_other_entries; i++){ // copy non-overlapped array
+				recnum[i] = tmp_recnum[i];
+			}
+			for(i = 0; i < n_overlap_entries; i++){ // randomly select from array
+				big_rand = genrand64_int64();
+				big_rand = big_rand%n_other_entries;
+
+				recnum[n_other_entries+i] = tmp_recnum[big_rand];
+			}
+		}
+
+		for(i = 0; i < numrecs64; i++) { // re-shuffle the array
 			long long tmp;
 
 			big_rand=genrand64_int64();
@@ -849,22 +948,18 @@ int thread_main(void* arg)
 			recnum[big_rand] = tmp;
 		}
 	}
-	else
-	{
-		fprintf(stderr,"Random uniqueness fallback.\n");
-	}
 
-	if(g_access == MODE_WRITE && block_open == 0)
+	if(g_access == MODE_APPEND && block_open == 0)
 	{
 		ret = unlink(filename);
 //		if(ret != 0)
 //			printf("Unlink %s failed\n", filename);
 	}
 
-	if(g_access == MODE_READ || g_access == MODE_RND_READ || g_access == MODE_RND_WRITE)
+	if(g_access == MODE_READ || g_access == MODE_RND_READ || g_access == MODE_RND_WRITE || g_access == MODE_WRITE)
 	{
 		stat(filename, &sb);
-		printf("sb.st_size: %d\n", (int)sb.st_size);
+		//printf("sb.st_size: %d\n", (int)sb.st_size);
 
 		if(sb.st_size < filebytes64)
 		{
@@ -883,7 +978,7 @@ int thread_main(void* arg)
 	else
 		open_flags = O_RDWR | O_CREAT;
 
-	fd = open(filename, open_flags, 0766);	
+	fd = open(filename, open_flags, 0766);
 	if(fd < 0)
 	{
 		printf("%s Open failed %d\n", filename, ret);
@@ -902,7 +997,7 @@ int thread_main(void* arg)
 	page_size = sysconf(_SC_PAGESIZE);
 	org_buf = malloc(real_reclen+page_size);
 	buf=(char *)(((long)org_buf+(long)page_size) & (long)~(page_size-1));
- 
+
 	memset(buf, 0xcafe, real_reclen);
 
 //	printf("T%d ready\n", thread_num);
@@ -915,10 +1010,10 @@ int thread_main(void* arg)
 	if(num_threads == 1)
 	{
 		single_get_nr_switches();
-		get_con_switches();		
+		get_con_switches();
 	}
 
-	if(g_access == MODE_WRITE || g_access == MODE_RND_WRITE)
+	if(g_access == MODE_WRITE || g_access == MODE_RND_WRITE || g_access == MODE_APPEND)
 	{
 		for(i=0; i<numrecs64; i++)
 		{
@@ -947,7 +1042,7 @@ int thread_main(void* arg)
 		 	{
 				if(g_access == MODE_RND_WRITE)
 				{
-					offset = (long long)recnum[i]*1024*reclen;	 	 
+					offset = (long long)recnum[i]*1024*reclen;
 					//printf("%lld ", offset);
 
 					if(lseek(fd, offset, SEEK_SET)==-1)
@@ -958,24 +1053,61 @@ int thread_main(void* arg)
 						signal_thread_status(thread_num, END, &thread_cond3);
 						return -1;
 					}
-				}		
-				
+				}
+				// get current time for latency
+				if(Latency_state==1 || print_IOPS == 1) IO_Latency=get_current_utime();
+
 			 	if(write(fd, buf, real_reclen)<0)
 			 	{
-					printf("File write error!!!\n");
+					printf("\nFile write error!!! [no: %d, pos: %lu]\n", errno, lseek(fd, 0, SEEK_CUR)/1024 );
 					//exit(1);
 					setState(ERROR, "File write error");
 					signal_thread_status(thread_num, END, &thread_cond3);
 					return -1;
 			 	}
-				
+
 				if(g_sync == FSYNC)
 				{
 					fsync(fd);
 				}
+
+				if(g_sync == FDATASYNC)
+				{
+					fdatasync(fd);
+				}
+				// if we are checking for IO latency or IOPS
+				if(Latency_state == 1 || print_IOPS ==1)
+				{
+					// get Delta time for an IO
+					Delta_Latency = (float)((float)get_relative_utime(IO_Latency));
+					second_hand = second_hand + Delta_Latency ;
+					IO_Count++; // increase IO count
+					if(Latency_state==1) // measure the time difference
+						fprintf(Latency_fp, "%.0f\tusec\n", (float)Delta_Latency);
+
+                                	if(print_IOPS == 1 && second_hand > 1000000
+							&& g_access == MODE_RND_WRITE) // check time to print out iops
+					{
+						fprintf(pIOPS_fp, "%lld IOPS\n", IO_Count);
+						show_progress_IOPS(i*100/numrecs64, (int)IO_Count);
+						IO_Count = 0;
+						second_hand = 0;
+					}
+					else if(print_IOPS == 1 && second_hand > 1000000
+							&& (g_access == MODE_WRITE || g_access == MODE_APPEND))
+					{
+						fprintf(pIOPS_fp, "%lld KB/s\n", IO_Count*i);
+						show_progress_IOPS(i*100/numrecs64, (int)IO_Count);
+						IO_Count = 0;
+						second_hand = 0;
+					}
+				}
 		 	}
-			show_progress(i*100/numrecs64);
-		}	
+			if(print_IOPS == 0) // IOPS on progress bar
+			{
+				show_progress(i*100/numrecs64);
+			}
+		}
 
 		/* Final sync */
 		if(g_sync == MMAP || g_sync == MMAP_AS || g_sync == MMAP_S)
@@ -985,7 +1117,7 @@ int thread_main(void* arg)
 		else
 		{
 			fsync(fd);
-		}		
+		}
 	}
 	else
 	{
@@ -1008,7 +1140,7 @@ int thread_main(void* arg)
 		 	{
 				if(g_access == MODE_RND_READ)
 				{
-					offset = (long long)recnum[i]*1024*reclen;	 	 
+					offset = (long long)recnum[i]*1024*reclen;
 					//printf("%lld ", offset);
 
 					if(lseek(fd, offset, SEEK_SET)==-1)
@@ -1019,8 +1151,9 @@ int thread_main(void* arg)
 						signal_thread_status(thread_num, END, &thread_cond3);
 						return -1;
 					}
-				}		
-				
+				}
+				// start measuring latency
+				if(Latency_state==1 || print_IOPS == 1) IO_Latency=get_current_utime();
 			 	if(read(fd, buf, real_reclen)<=0)
 			 	{
 					printf("File read error!!!\n");
@@ -1029,9 +1162,39 @@ int thread_main(void* arg)
 					signal_thread_status(thread_num, END, &thread_cond3);
 					return -1;
 			 	}
+				// if we are checking for IO latency or IOPS
+				if(Latency_state == 1 || print_IOPS ==1)
+				{
+					// get Delta time for an IO
+					Delta_Latency = (float)((float)get_relative_utime(IO_Latency));
+					second_hand = second_hand + Delta_Latency ;
+					IO_Count++; // increase IO count
+					if(Latency_state==1) // measure the time difference
+						fprintf(Latency_fp, "%.0f\tusec\n", (float)Delta_Latency);
+
+                                	if(print_IOPS == 1 && second_hand > 1000000
+							&& g_access == MODE_RND_READ) // check time to print out iops
+					{
+						fprintf(pIOPS_fp, "%lld IOPS\n", IO_Count);
+						show_progress_IOPS(i*100/numrecs64, (int)IO_Count);
+						IO_Count = 0;
+						second_hand = 0;
+					}
+					else if (print_IOPS == 1 && second_hand > 1000000
+							&& g_access == MODE_READ)
+					{
+						fprintf(pIOPS_fp, "%lld KB/s\n", IO_Count*i);
+						show_progress_IOPS(i*100/numrecs64, (int)IO_Count);
+						IO_Count = 0;
+						second_hand = 0;
+					}
+				}
 		 	}
-			show_progress(i*100/numrecs64);
-		}	
+			if(print_IOPS == 0) // IOPS on progress bar
+			{
+				show_progress(i*100/numrecs64);
+			}
+		}
 	}
 
 	show_progress(100);
@@ -1039,8 +1202,8 @@ int thread_main(void* arg)
 	if(num_threads == 1)
 	{
 		single_get_nr_switches();
-		get_con_switches();		
-	}	
+		get_con_switches();
+	}
 
 //	printf("T%d end\n", thread_num);
 	signal_thread_status(thread_num, END, &thread_cond3);
@@ -1051,9 +1214,12 @@ int thread_main(void* arg)
 	 close(fd);
 
 	 free(org_buf);
- 
+
  	if(recnum)
 		free(recnum);
+
+	if(tmp_recnum)
+		free(tmp_recnum);
 
 //	printf("thread end\n");
 
@@ -1069,36 +1235,44 @@ int sql_cb(void* data, int ncols, char** values, char** headers)
 	{
 		printf("%s=%s\n", headers[i], values[i]);
 	}
-	
+
 	return 0;
 }
 
 #define exec_sql(db, sql, cb)	sqlite3_exec(db, sql, cb, NULL, NULL);
 
-int init_db_for_update(sqlite3* db, char* filename, int trs)
+int init_db_for_update(sqlite3* db, char* filename,int start ,int trs)
 {
-	int i;
+	int i,j,length;
+	char sql[4096]={0,};
 
 	printf("%s\n", __func__);
 	printf("trs : %d\n", trs);
 
-	for(i = 0; i < trs; i++) 
+	for(i = start; i < trs; i++)
 	{
-		exec_sql(db, "INSERT INTO tblMyList(Value) VALUES('"INSERT_STR"');", NULL);
+		length =0;
+		length += sprintf(sql+length,"BEGIN;");
+		for(j=0;j<numberOfTable;j++){
+			length+=sprintf(sql+length,"INSERT INTO tblMyList%d(id,Value) VALUES(%d,'%s');",j,i,INSERT_STR);
+		}
+		strcat(sql,"COMMIT;");
+		exec_sql(db,sql, NULL);
+
 		show_progress(i*100/trs);
 	}
 
 	show_progress(100);
 
 	printf("\ninit end\n");
-	
+
 	return 0;
 }
 
 char* get_journal_mode_string(int journal_mode)
 {
 	char* ret_str;
-	
+
 	switch(journal_mode) {
 		case 0:
 			ret_str = "DELETE";
@@ -1120,21 +1294,42 @@ char* get_journal_mode_string(int journal_mode)
 			break;
 		default:
 			ret_str = "TRUNCATE";
-			break;		
+			break;
 	}
 
 	return ret_str;
 }
+/*get random id using sampling without replacement*/
+int get_random_id(char * random_check,int random_count)
+{
+	int id = rand()%random_count;
+
+	while(1)
+	{
+		if(random_check[id] == 0)
+		{
+			random_check[id] = 1;
+			break;
+		}
+		else
+			id = rand()%random_count;
+	}
+
+	return id;
+}
 
 int thread_main_db(void* arg)
 {
-
 	int thread_num = *((int*)arg);
-	char filename[128] = {0, };
-	sqlite3 *db;
-	int rc;
-	int i;
-	char sql[1024] = {0, };
+	char filename[20][128];
+	sqlite3 *db[20];
+	int rc, ran;
+	int db_i, tbl_i, tx_i;
+	int column_count = 0;
+	char sql[4096] = {0, };
+	struct stat statbuf;
+	int length = 0;
+	char * random_check[20];
 
 	if(num_threads == 1)
 	{
@@ -1142,94 +1337,213 @@ int thread_main_db(void* arg)
 		get_path(getpid(), syscall(__NR_gettid));
 	}
 
-//	printf("db thread start\n");
-
-	sprintf(filename, "%s/test.db%d", pathname, thread_num);
-//	printf("open db : %s\n", filename);
-
-	rc = sqlite3_open(filename, &db);
-
-	if(SQLITE_OK != rc)
+	for (db_i = 0; db_i<numberOfDB; db_i++)
 	{
-		fprintf(stderr, "rc = %d\n", rc);
-		fprintf(stderr, "sqlite3_open error :%s\n", sqlite3_errmsg(db));
-		//exit(EXIT_FAILURE);
-		setState(ERROR, "sqlite3_open error");
-		signal_thread_status(thread_num, READY, &thread_cond1);
-		return -1;
-	}
+		/* Create database file. */
+		sprintf(filename[db_i], "%s/test.db%d_%d", pathname, thread_num, db_i);
+		rc = sqlite3_open(filename[db_i], &db[db_i]);
 
-	exec_sql(db, "PRAGMA page_size = 4096;", NULL);
-	sprintf(sql, "PRAGMA journal_mode=%s;", get_journal_mode_string(db_journal_mode));
-	exec_sql(db, sql, NULL);
-	sprintf(sql, "PRAGMA synchronous=%d;", db_sync_mode);
-	exec_sql(db, sql, NULL);
-
-	if(db_init_show == 0)
-	{
-		db_init_show = 1;
-		printf("-----------------------------------------\n");		
-		printf("[DB information]\n");
-		printf("-----------------------------------------\n");
-		exec_sql(db, "select sqlite_version() AS sqlite_version;", sql_cb);
-		exec_sql(db, "PRAGMA page_size;", sql_cb);
-		exec_sql(db, "PRAGMA journal_mode;", sql_cb);
-		exec_sql(db, "PRAGMA synchronous;", sql_cb);		
-	}
-
-	if(db_mode == 0)
-	{
-		exec_sql(db, "DROP TABLE IF EXISTS tblMyList;", NULL);
-	}
-
-	exec_sql(db, "CREATE TABLE IF NOT EXISTS tblMyList (id INTEGER PRIMARY KEY autoincrement, Value TEXT not null, creation_date long);", NULL);
-
-	/* check column count */
-	if(db_mode != 0)
-	{
-		char** result;
-		char* errmsg;
-		int rows, columns;
-		int column_count = 0;
-		sprintf(sql, "SELECT count(*) from tblMyList;");
-		rc = sqlite3_get_table(db, sql, &result, &rows, &columns, &errmsg);
-		column_count = atoi(result[1]);
-		//printf("existing column count : %d\n", column_count);
-		sqlite3_free_table(result);
-
-		if(column_count < db_transactions)
+		/* If the creation of db file fails, it returns error, -1. */
+		if (SQLITE_OK != rc)
 		{
-			init_db_for_update(db, filename, db_transactions - column_count);
+			fprintf(stderr, "rc = %d\n", rc);
+			fprintf(stderr, "sqlite3_open error :%s\n", sqlite3_errmsg(db[db_i]));
+
+			for (; 0<db_i; db_i--)
+				sqlite3_close(db[db_i-1]);
+
+			setState(ERROR, "sqlite3_open error");
+			signal_thread_status(thread_num, READY, &thread_cond1);
+
+			return -1;
+		}
+
+		/* Initialize database (Set page size, journal mode, synch mode. */
+		exec_sql(db[db_i], "PRAGMA page_size = 4096;", NULL);
+		sprintf(sql, "PRAGMA journal_mode=%s;", get_journal_mode_string(db_journal_mode));
+		exec_sql(db[db_i], sql, NULL);
+		sprintf(sql, "PRAGMA synchronous=%d;", db_sync_mode);
+		exec_sql(db[db_i], sql, NULL);
+
+		/* If a db have not empty table, drops them. */
+		if(db_mode == 0)
+		{
+			for(tbl_i = 0; tbl_i<numberOfTable; tbl_i++){
+				sprintf(sql,"DROP TABLE IF EXISTS tblMyList%d;", tbl_i);
+				exec_sql(db[db_i], sql, NULL);
+			}
+		}
+
+		/* Create tables in db. */
+		length = sprintf(sql,"BEGIN;");
+		random_check[db_i] = (char*)calloc(db_transactions,sizeof(char));
+
+		for(tbl_i = 0; tbl_i < numberOfTable; tbl_i++){
+			length += sprintf(sql+length," CREATE TABLE IF NOT EXISTS tblMyList%d (id INTEGER PRIMARY KEY, Value TEXT not null, creation_date long);", tbl_i);
+		}
+
+		length += sprintf(sql+length,"COMMIT;");
+		rc = exec_sql(db[db_i],sql,NULL);
+
+		if (SQLITE_OK != rc)
+		{
+			fprintf(stderr, "rc = %d\n", rc);
+			fprintf(stderr, "exec_sql error :%s\n", sqlite3_errmsg(db[db_i]));
+
+			for (; 0<db_i; db_i--)
+				sqlite3_close(db[db_i-1]);
+
+			setState(ERROR, "exec_sql error");
+			signal_thread_status(thread_num, READY, &thread_cond1);
+
+			return -1;
+		}
+
+		/* check column count */
+		if(db_mode != 0)
+		{
+			char** result;
+			char* errmsg;
+			int rows, columns;
+			int numberOfTransaction;
+			int currentTableCount;
+
+			/* check new tables count if it is smaller than old talbes count, make record */
+			for(tbl_i=0; tbl_i<numberOfTable; tbl_i++)
+			{
+				sprintf(sql, "SELECT count(*) from tblMyList%d;", tbl_i);
+				rc = sqlite3_get_table(db[db_i], sql, &result, &rows, &columns, &errmsg);
+
+				if(tbl_i == 0)
+				{
+					column_count = atoi(result[1]);
+					sqlite3_free_table(result);
+					continue;
+				}
+				else if(column_count > atoi(result[1]))
+				{
+					int column_i;
+					printf("Filling in the missing record in Table...\n");
+					for(column_i = atoi(result[1]); column_i<column_count; column_i++)
+					{
+						srand(column_i);
+						sprintf(sql,"INSERT INTO TblMyList%d(id,Value) VALUES(%d,'%s');", tbl_i, column_i, INSERT_STR);
+						exec_sql(db[db_i],sql,NULL);
+					}
+					sqlite3_free_table(result);
+				}
+			}
+
+			printf("%d\n", MIN_DATABASE_SIZE*numberOfTable);
+
+			/* If size of tables is smaller than 40KB, it extend each table to 40KB */
+			stat(filename[db_i], &statbuf);
+			if(column_count < db_transactions || statbuf.st_size < (MIN_DATABASE_SIZE*numberOfTable))
+			{
+				printf("%d\n", MIN_DATABASE_SIZE*numberOfTable);
+				numberOfTransaction = db_transactions - column_count;
+				if(db_transactions < MIN_CHECK)
+				{
+					numberOfTransaction = (MIN_CHECK- column_count);
+				}
+				init_db_for_update(db[db_i], filename[db_i], column_count, numberOfTransaction);
+
+			}
+
+			column_count = column_count + numberOfTransaction;
+			if(db_mode == 2) random_check[db_i]=(char*)realloc(random_check[db_i],column_count);/*extend random buffer to use sampling without replacement*/
 		}
 	}
 
-	//sqlite3_db_release_memory(db);
-	
+	if(db_init_show == 0)
+	{
+		for (db_i = 0; db_i<numberOfDB; db_i++)
+		{
+			db_init_show = 1;
+			printf("-----------------------------------------\n");
+			printf("[DB information of db %s]\n", filename[db_i]);
+			printf("-----------------------------------------\n");
+			exec_sql(db[db_i], "select sqlite_version() AS sqlite_version;", sql_cb);
+			exec_sql(db[db_i], "PRAGMA page_size;", sql_cb);
+			exec_sql(db[db_i], "PRAGMA journal_mode;", sql_cb);
+			exec_sql(db[db_i], "PRAGMA synchronous;", sql_cb);
+		}
+	}
+
+	for (db_i=1; db_i<numberOfDB; db_i++)
+	{
+		sprintf(sql,"ATTACH DATABASE '%s' AS 'db%d'", filename[db_i], db_i);
+		exec_sql(db[0], sql, NULL);
+		sprintf(sql,"PRAGMA db%d.journal_mode=%s", db_i, get_journal_mode_string(db_journal_mode));
+		exec_sql(db[0], sql, NULL);
+	}
+
 	signal_thread_status(thread_num, READY, &thread_cond1);
 	wait_thread_status(thread_num, EXEC, &thread_cond2);
 
 	if(num_threads == 1)
 	{
 		single_get_nr_switches();
-		get_con_switches();		
+		get_con_switches();
 	}
 
-	for(i = 0; i < db_transactions; i++) 
+	for(tx_i = 0; tx_i < db_transactions; tx_i++)
 	{
+		srand(tx_i);
+		length=0;
+		length+=sprintf(sql,"BEGIN;");
+
 		if(db_mode == 0)
 		{
-			exec_sql(db, "INSERT INTO tblMyList(Value) VALUES('"INSERT_STR"');", NULL);
+			for (db_i = 0; db_i<numberOfDB; db_i++)
+			{
+				if(random_insert)
+					ran = get_random_id(random_check[db_i],db_transactions);
+				else
+					ran = tx_i;
+
+				for(tbl_i = 0; tbl_i < numberOfTable ; tbl_i++)
+				{
+					if (db_i == 0)
+						length +=sprintf(sql+length,"INSERT INTO tblMyList%d(id,Value) VALUES(%d,'%s');", tbl_i, ran, INSERT_STR);
+					else
+						length +=sprintf(sql+length,"INSERT INTO db%d.tblMyList%d(id,Value) VALUES(%d,'%s');", db_i, tbl_i, ran, INSERT_STR);
+				}
+			}
+			strcat(sql,"COMMIT;");
+			exec_sql(db[0], sql, NULL);
 		}
 		else if(db_mode == 1)
 		{
-			srand(i);
-			sprintf(sql, "UPDATE tblMyList SET Value = '%s' WHERE id = %d;", UPDATE_STR, rand()%db_transactions + 1);
-			exec_sql(db, sql, NULL);
+			for(db_i = 0; db_i<numberOfDB; db_i++)
+			{
+				for(tbl_i = 0; tbl_i<numberOfTable; tbl_i++)
+				{
+					if (db_i == 0)
+						length += sprintf(sql+length, "UPDATE tblMyList%d SET Value = '%s' WHERE id = %d;", tbl_i, UPDATE_STR, rand()%column_count+1);
+					else
+						length += sprintf(sql+length, "UPDATE db%d.tblMyList%d SET Value = '%s' WHERE id = %d;", db_i, tbl_i, UPDATE_STR, rand()%column_count+1);
+				}
+			}
+			strcat(sql,"COMMIT;");
+			exec_sql(db[0],sql,NULL);
 		}
 		else if(db_mode == 2)
 		{
-			sprintf(sql, "DELETE FROM tblMyList WHERE id=%d;", i);
-			exec_sql(db, sql, NULL);
+			for (db_i = 0; db_i<numberOfDB; db_i++)
+			{
+				ran = get_random_id(random_check[db_i],column_count);
+
+				for(tbl_i=0; tbl_i<numberOfTable; tbl_i++)
+				{
+					if (db_i == 0)
+						length+=sprintf(sql+length, "DELETE FROM tblMyList%d WHERE id=%d;", tbl_i, ran);
+					else
+						length+=sprintf(sql+length, "DELETE FROM db%d.tblMyList%d WHERE id=%d;", db_i, tbl_i, ran);
+				}
+			}
+			strcat(sql,"COMMIT;");
+			exec_sql(db[0], sql, NULL);
 		}
 		else
 		{
@@ -1238,7 +1552,21 @@ int thread_main_db(void* arg)
 			signal_thread_status(thread_num, END, &thread_cond3);
 			return -1;
 		}
-		show_progress(i*100/db_transactions);
+
+		if(db_interval)
+		{
+			/*set time interval in millisecond*/
+			usleep(db_interval*1000);
+		}
+
+		show_progress(tx_i*100/db_transactions);
+	}
+
+	/* Forced checkpointing for WAL mode */
+	if(db_journal_mode == 3)
+	{
+		for (db_i = 0; db_i<numberOfDB; db_i++)
+			sqlite3_wal_checkpoint(db[db_i], NULL);
 	}
 
 	show_progress(100);
@@ -1246,86 +1574,97 @@ int thread_main_db(void* arg)
 	if(num_threads == 1)
 	{
 		single_get_nr_switches();
-		get_con_switches();		
-	}	
+		get_con_switches();
+	}
 
 	signal_thread_status(thread_num, END, &thread_cond3);
 
 	if(db_mode == 2)
 	{
-		exec_sql(db, "DROP TABLE tblMyList;", NULL);
+		for (db_i = 0; db_i<numberOfDB; db_i++)
+		{
+			for(tbl_i=0;tbl_i<numberOfTable;tbl_i++){
+				if (db_i == 0)
+					sprintf(sql,"DROP TABLE IF EXISTS tblMyList%d;", tbl_i);
+				else
+					sprintf(sql,"DROP TABLE IF EXISTS db%d.tblMyList%d;", db_i, tbl_i);
+
+				exec_sql(db[db_i],sql, NULL);
+			}
+		}
 	}
 
-	rc = sqlite3_close(db);
-
-	if(SQLITE_OK != rc)
+	for (db_i = 0; db_i<numberOfDB; db_i++)
 	{
-		fprintf(stderr, "rc = %d\n", rc);
-		fprintf(stderr, "sqlite3_close error :%s\n", sqlite3_errmsg(db));
-		return -1;
-	}	
+		rc = sqlite3_close(db[db_i]);
+
+		if(SQLITE_OK != rc)
+		{
+			fprintf(stderr, "rc = %d\n", rc);
+			fprintf(stderr, "sqlite3_close error :%s\n", sqlite3_errmsg(db[db_i]));
+			return -1;
+		}
+	}
 
 	if(db_mode == 2)
 	{
-		unlink(filename);
+		for (db_i = 0; db_i<numberOfDB; db_i++)
+			unlink(filename[db_i]);
 	}
 
-//	printf("db thread end\n");
-
 	return 0;
-
 }
 
 int readline(FILE *f, char *buffer, size_t len)
 {
-   char c; 
+   char c;
    int i;
 
    memset(buffer, 0, len);
 
    for (i = 0; i < len; i++)
-   {   
-      int c = fgetc(f); 
+   {
+      int c = fgetc(f);
 
-      if (!feof(f)) 
-      {   
+      if (!feof(f))
+      {
          if (c == '\r')
             buffer[i] = 0;
          else if (c == '\n')
-         {   
+         {
             buffer[i] = 0;
 
             return i+1;
-         }   
+         }
          else
-            buffer[i] = c; 
-      }   
+            buffer[i] = c;
+      }
       else
-      {   
+      {
          //fprintf(stderr, "read_line(): recv returned %d\n", c);
-         return -1; 
-      }   
-   }   
+         return -1;
+      }
+   }
 
-   return -1; 
+   return -1;
 }
 
 long long get_current_utime(void)
 {
 	struct timeval current;
-	
+
 	gettimeofday(&current,NULL);
-	
-	return (current.tv_sec*1000000 + current.tv_usec);	
+
+	return (current.tv_sec*1000000 + current.tv_usec);
 }
 
 long long get_relative_utime(long long start)
 {
 	struct timeval current;
-	
+
 	gettimeofday(&current,NULL);
-	
-	return (current.tv_sec*1000000 + current.tv_usec - start);		
+
+	return (current.tv_sec*1000000 + current.tv_usec - start);
 }
 
 int get_new_fd(int fd_org)
@@ -1345,7 +1684,7 @@ int get_new_fd(int fd_org)
 	}
 	//printf("new:%d\n", fd_new);
 	return fd_new;
-	
+
 }
 
 int open_num = 0;
@@ -1353,28 +1692,29 @@ int open_num = 0;
 int do_script(struct script_entry* se, struct script_thread_time* st)
 {
 	int ret;
-	char pathname[256];
+	char replay_pathname[256];
 	int flags;
 	int i;
 	int fd_ret;
 	long long io_time_start;
 	long long io_time = -1;
-	
+
 	//printf("thread[%d] %s\n", se->thread_num, se->cmd);
 	if( strncmp(se->cmd, "open", 4) == 0)
 	{
 		int fd_org = atoi(se->args[2]);
-		
+
 		//printf("open %s, %s, %d\n", se->args[0], se->args[1], fd_org);
 		if(se->args[0][0] == '"')
 		{
-			strcpy(pathname, &se->args[0][1]);
-			pathname[strlen(pathname)-1]='\0';
+			strcpy(replay_pathname, &se->args[0][1]);
+			replay_pathname[strlen(replay_pathname)-1]='\0';
 		}
 		else
 		{
-			//sprintf(pathname, "./data/temp_%d_%d.dat", se->thread_num, open_num++);	
-			sprintf(pathname, "/data2/test/temp_%d_%d.dat", se->thread_num, open_num++);	
+			//sprintf(pathname, "./data/temp_%d_%d.dat", se->thread_num, open_num++);
+			//sprintf(pathname, "/data2/test/temp_%d_%d.dat", se->thread_num, open_num++);
+			sprintf(replay_pathname, "%s/temp_%d_%d.dat", pathname, se->thread_num, open_num++);
 		}
 
 		if( strncmp(se->args[1], "O_RDONLY", 8) == 0)
@@ -1387,9 +1727,9 @@ int do_script(struct script_entry* se, struct script_thread_time* st)
 		}
 
 		io_time_start = get_current_utime();
-		fd_ret = open(pathname, flags, 0777);
+		fd_ret = open(replay_pathname, flags, 0777);
 		io_time = get_relative_utime(io_time_start);
-		SCRIPT_PRINT("open %s --> %d\n", pathname, fd_ret);
+		SCRIPT_PRINT("open %s --> %d\n", replay_pathname, fd_ret);
 		if(fd_ret > 0)
 		{
 			ret = pthread_mutex_lock(&fd_lock);
@@ -1400,11 +1740,11 @@ int do_script(struct script_entry* se, struct script_thread_time* st)
 				return -1;
 			}
 			//printf("open org:%d, new:%d, index:%d\n", fd_org, fd_ret, gScriptFdConv.index);
-			
+
 			gScriptFdConv.fd_org[gScriptFdConv.index] = fd_org;
 			gScriptFdConv.fd_new[gScriptFdConv.index] = fd_ret;
 			gScriptFdConv.index++;
-			
+
 			ret = pthread_mutex_unlock(&fd_lock);
 			if(ret < 0)
 			{
@@ -1418,9 +1758,9 @@ int do_script(struct script_entry* se, struct script_thread_time* st)
 	{
 		int fd_org = atoi(se->args[0]);
 		int fd_new = 0;
-		
+
 		//printf("close %d, %d\n", fd_org, atoi(se->args[1]));
-		
+
 		ret = pthread_mutex_lock(&fd_lock);
 		if(ret < 0)
 		{
@@ -1455,7 +1795,7 @@ int do_script(struct script_entry* se, struct script_thread_time* st)
 			io_time = get_relative_utime(io_time_start);
 			SCRIPT_PRINT("close %d --> %d\n", fd_new, ret);
 		}
-		
+
 	}
 	else if( strncmp(se->cmd, "write", 5) == 0)
 	{
@@ -1547,35 +1887,35 @@ int do_script(struct script_entry* se, struct script_thread_time* st)
 	}
 	else if( strncmp(se->cmd, "access", 6) == 0)
 	{
-		strcpy(pathname, &se->args[0][1]);
-		pathname[strlen(pathname)-1]='\0';
+		strcpy(replay_pathname, &se->args[0][1]);
+		replay_pathname[strlen(replay_pathname)-1]='\0';
 
 		io_time_start = get_current_utime();
-		ret = access(pathname,  0777);
+		ret = access(replay_pathname,  0777);
 		io_time = get_relative_utime(io_time_start);
-		SCRIPT_PRINT("access %s --> %d\n", pathname, ret);
+		SCRIPT_PRINT("access %s --> %d\n", replay_pathname, ret);
 	}
 	else if( strncmp(se->cmd, "stat", 4) == 0)
 	{
 		struct stat stat_buf;
-		strcpy(pathname, &se->args[0][1]);
-		pathname[strlen(pathname)-1]='\0';
+		strcpy(replay_pathname, &se->args[0][1]);
+		replay_pathname[strlen(replay_pathname)-1]='\0';
 
 		io_time_start = get_current_utime();
-		ret = stat64(pathname,  &stat_buf);
+		ret = stat64(replay_pathname,  &stat_buf);
 		io_time = get_relative_utime(io_time_start);
-		SCRIPT_PRINT("stat64 %s --> %d\n", pathname, ret);
+		SCRIPT_PRINT("stat64 %s --> %d\n", replay_pathname, ret);
 	}
 	else if( strncmp(se->cmd, "lstat", 5) == 0)
 	{
 		struct stat stat_buf;
-		strcpy(pathname, &se->args[0][1]);
-		pathname[strlen(pathname)-1]='\0';
+		strcpy(replay_pathname, &se->args[0][1]);
+		replay_pathname[strlen(replay_pathname)-1]='\0';
 
 		io_time_start = get_current_utime();
-		ret = lstat64(pathname,  &stat_buf);
+		ret = lstat64(replay_pathname,  &stat_buf);
 		io_time = get_relative_utime(io_time_start);
-		SCRIPT_PRINT("lstat64 %s --> %d\n", pathname, ret);
+		SCRIPT_PRINT("lstat64 %s --> %d\n", replay_pathname, ret);
 	}
 	else if( strncmp(se->cmd, "fstat", 5) == 0)
 	{
@@ -1592,13 +1932,13 @@ int do_script(struct script_entry* se, struct script_thread_time* st)
 	}
 	else if( strncmp(se->cmd, "unlink", 6) == 0)
 	{
-		strcpy(pathname, &se->args[0][1]);
-		pathname[strlen(pathname)-1]='\0';
+		strcpy(replay_pathname, &se->args[0][1]);
+		replay_pathname[strlen(replay_pathname)-1]='\0';
 
 		io_time_start = get_current_utime();
-		ret = unlink(pathname);
+		ret = unlink(replay_pathname);
 		io_time = get_relative_utime(io_time_start);
-		SCRIPT_PRINT("unlink %s --> %d\n", pathname, ret);
+		SCRIPT_PRINT("unlink %s --> %d\n", replay_pathname, ret);
 	}
 
 	return io_time;
@@ -1641,8 +1981,12 @@ int script_thread_main(void* arg)
 
 	gScriptThreadTime[thread_num].end = 1;
 	//printf("thread[%d] ended at %lld, org %lld\n", thread_num, get_relative_utime(time_start), gScriptThreadTime[thread_num].end);
+	return 0;
 }
 
+/*
+ * main function for Replay script
+ */
 int replay_script(void)
 {
 	FILE* fp;
@@ -1662,13 +2006,14 @@ int replay_script(void)
 	int max_read_size = 0;
 	long long total_io_time;
 	int total_io_count;
-	long long real_end_time;
+	long long real_end_time = 0;
 	int total_read;
 	int total_write;
-	
-	printf("%s start\n", __func__);
 
-	/* 
+	printf("%s start\n", __func__);
+	printf("Write target : %s\n", pathname);
+
+	/*
 	* Open script file (output of MobiGen script)
 	*/
 	fp = fopen(script_path, "r");
@@ -1685,12 +2030,12 @@ int replay_script(void)
 	do {
 		ret = readline(fp, line_buf, sizeof(line_buf));
 		if(ret > 0) {
-			line_count++;		
+			line_count++;
 		}
 	}while(ret > 0);
 	printf("line count : %d\n", line_count);
 
-	/* 
+	/*
 	* Allocate memory for all script entries using line_count
 	*/
 	gScriptEntry = (struct script_entry*)malloc(line_count*sizeof(struct script_entry));
@@ -1711,22 +2056,23 @@ int replay_script(void)
 		char* ptr;
 		memset(line_buf, 0, sizeof(line_buf));
 		ret = readline(fp, line_buf, sizeof(line_buf));
-		
+
 		ptr = strtok(line_buf, " ");
 		gScriptEntry[i].thread_num = atoi(ptr);
 
 		ptr = strtok( NULL, " ");
 		gScriptEntry[i].time = atoll(ptr);
-		
+
 		ptr = strtok( NULL, " ");
 		gScriptEntry[i].cmd = (char*)malloc(strlen(ptr)+1);
 		strcpy(gScriptEntry[i].cmd, ptr);
-				
+
 		while( ptr = strtok( NULL, " "))
 		{
 			gScriptEntry[i].args[args_num] = (char*)malloc(strlen(ptr)+1);
 			strcpy(gScriptEntry[i].args[args_num], ptr);
 			args_num++;
+			if(args_num == 3) break;
 		}
 		gScriptEntry[i].arg_num = args_num;
 
@@ -1739,36 +2085,36 @@ int replay_script(void)
 
 	/*
 	* Get additional information from script entry.
-	* : number of thread, start/end time of threads, open count, MAX R/W size and original execution time
+	* : number of thread, start/end time of threads, open count,
+	*  MAX R/W size and original execution time
 	*/
 
 	/* Number of thread */
 	script_thread_num = gScriptEntry[line_count-1].thread_num+1;
 	printf("script_thread_num: %d\n", script_thread_num);
-	
-	gScriptThreadTime = (struct script_thread_time*)malloc(script_thread_num*sizeof(struct script_thread_time));
-	if(gScriptThreadTime == NULL)
-	{
+
+	gScriptThreadTime = (struct script_thread_time*)malloc(script_thread_num *
+		sizeof(struct script_thread_time));
+	if(gScriptThreadTime == NULL) {
 		printf("gScriptThreadTime malloc failed\n");
 		setState(ERROR, "malloc failed");
 		return -1;
 	}
 
-	for(i = 0; i < line_count; i++)
-	{
+	/* memset for gScriptThreadTime */
+	memset(gScriptThreadTime, 0x0, script_thread_num*sizeof(struct script_thread_time));
+
+	for(i = 0; i < line_count; i++) {
 		/* Start/end time of each thread */
-		if(old_thread_num != gScriptEntry[i].thread_num)
-		{
+		if(old_thread_num != gScriptEntry[i].thread_num) {
 			thread_index++;
 			old_thread_num = gScriptEntry[i].thread_num;
 			gScriptThreadTime[thread_index].start = gScriptEntry[i].time;
 			gScriptThreadTime[thread_index].thread_num = gScriptEntry[i].thread_num;
-		}
-		else
-		{
+		} else {
 			gScriptThreadTime[thread_index].end = gScriptEntry[i].time;
 		}
-		
+
 		gScriptThreadTime[thread_index].count++;
 
 		/* Get total count of 'open' system-call */
@@ -1791,8 +2137,8 @@ int replay_script(void)
 			if(size > max_write_size)
 			{
 				max_write_size= size;
-			}			
-		}	
+			}
+		}
 		else if( (strncmp(gScriptEntry[i].cmd, "read", 5) == 0))
 		{
 			int size = atoi(gScriptEntry[i].args[1]);
@@ -1807,15 +2153,15 @@ int replay_script(void)
 			if(size > max_read_size)
 			{
 				max_read_size= size;
-			}			
-		}	
+			}
+		}
 
 		/* Get original execution time */
 		if(real_end_time < gScriptEntry[i].time)
 		{
 			real_end_time = gScriptEntry[i].time;
 		}
-		
+
 	}
 	script_thread_num = thread_index+1;	/* real number of threads */
 	printf("open count : %d\n", open_count);
@@ -1826,7 +2172,7 @@ int replay_script(void)
 	{
 		printf("%d, %d, %lld, %lld\n", i, gScriptThreadTime[i].count, gScriptThreadTime[i].start, gScriptThreadTime[i].end);
 	}
-#endif	
+#endif
 
 	/*
 	* Allocate memory for additional informations.
@@ -1864,18 +2210,17 @@ int replay_script(void)
 
 	script_write_buf = (char*)malloc(max_write_size);
 	script_read_buf = (char*)malloc(max_read_size);
-	memset(script_write_buf, 0xcafe,max_write_size); 
+	memset(script_write_buf, 0xcafe,max_write_size);
 
-	/* 
+	/*
 	* Start run threads
 	*/
 
 	drop_caches();
-	
+
 	time_start = get_current_utime();
-	
-	while(1)
-	{
+
+	while(1) {
 		time_current = get_relative_utime(time_start);
 		for(i = 0; i < 	script_thread_num; i++)
 		{
@@ -1894,19 +2239,18 @@ int replay_script(void)
 				}
 			}
 		}
-		if(thread_start_cnt >= script_thread_num)
-		{
+		if(thread_start_cnt >= script_thread_num) {
 			break;
 		}
 	}
 
-	/* 
+	/*
 	* Wait until all threads complete its run
 	*/
 	while(1)
 	{
 		int not_end = 0;
-		
+
 		for(i = 0; i < script_thread_num; i++)
 		{
 			if(gScriptThreadTime[gScriptThreadTime[i].thread_num].end != 1)
@@ -1937,7 +2281,7 @@ int replay_script(void)
 	}
 
 	//printf("join start \n");
-#if 0	
+#if 0
 	/* Join threads */
 	for(i = 0; i < script_thread_num; i++)
 	{
@@ -1950,14 +2294,14 @@ int replay_script(void)
 		}
 		//free(res);
 	}
-#endif	
+#endif
 	printf("%s end\n", __func__);
 	printf("Total IO time : %.3f sec (%lld usec)\n", (double)total_io_time/1000000, total_io_time);
 	printf("Total IO count : %d \n", total_io_count);
 	printf("Total Write: %d bytes, Read: %d bytes\n", total_write, total_read);
 
-	/* 
-	* Free all memories 
+	/*
+	* Free all memories
 	*/
 	free(script_write_buf);
 	free(script_read_buf);
@@ -1974,8 +2318,8 @@ int replay_script(void)
 		{
 			free(gScriptEntry[i].args[j]);
 		}
-	}	
-	
+	}
+
 	free(gScriptEntry);
 	free(gScriptThreadTime);
 
@@ -1983,24 +2327,35 @@ int replay_script(void)
 }
 
 char *help[] = {
+" Mobibench "VERSION_NUM,
+" ",
 "    Usage: mobibench [-p pathname] [-f file_size_Kb] [-r record_size_Kb] [-a access_mode] [-h]",
 "                     [-y sync_mode] [-t thread_num] [-d db_mode] [-n db_transcations]",
-"                     [-j SQLite_journalmode] [-s SQLite_syncmode] [-g replay_script] [-q]",
+"                     [-j SQLite_journalmode] [-s SQLite_syncmode] [-i db_time_interval]",
+"		     [-g replay_script] [-q] [-L IO_Latency_file] [-k IOPS_FILE]",
+"		     [-v overlap_ratio_%] [-T Table_count] [-D Database_count]",
 " ",
 "           -p  set path name (default=./mobibench)",
 "           -f  set file size in KBytes (default=1024)",
 "           -r  set record size in KBytes (default=4)",
-"           -a  set access mode (0=Write, 1=Random Write, 2=Read, 3=Random Read) (default=0)",
+"           -a  set access mode (0=Write, 1=Random Write, 2=Read, 3=Random Read, 4=Append) (default=0)",
 "           -y  set sync mode (0=Normal, 1=O_SYNC, 2=fsync, 3=O_DIRECT, 4=Sync+direct,",
-"                              5=mmap, 6=mmap+MS_ASYNC, 7=mmap+MS_SYNC) (default=0)",
+"                              5=mmap, 6=mmap+MS_ASYNC, 7=mmap+MS_SYNC 8=fdatasync) (default=0)",
 "           -t  set number of thread for test (default=1)",
 "           -d  enable DB test mode (0=insert, 1=update, 2=delete)",
 "           -n  set number of DB transaction (default=10)",
+"           -i  set ms(Millisecond) time interval in database transaction",
 "           -j  set SQLite journal mode (0=DELETE, 1=TRUNCATE, 2=PERSIST, 3=WAL, 4=MEMORY, ",
 "                                        5=OFF) (default=1)",
 "           -s  set SQLite synchronous mode (0=OFF, 1=NORMAL, 2=FULL) (default=2)",
 "           -g  set replay script (output of MobiGen)",
 "           -q  do not display progress(%) message",
+"           -L  Make record on latency of each IO to a file (default=IO_latency.txt)",
+"           -k  Print out IOPS of the file test (default=IO_latency.txt)",
+"	    -v  set overlap ratio(%) of random numbers for",
+"					random IO workload (default=0%)",
+"	   -T  set number of tables (default=3, limit=20)",
+"	   -D  set number of databases (default=3, limit=20)",
 ""
 };
 
@@ -2011,11 +2366,11 @@ void show_help()
     {
 		printf("%s\n", help[i]);
     }
-	return;	
+	return;
 }
 
 extern char *optarg;
-#define USAGE  "\tUsage: For usage information type mobibench -h \n\n"
+#define USAGE  "\tMobibench "VERSION_NUM"\n\n\tUsage: For usage information type mobibench -h \n\n"
 
 int main( int argc, char **argv)
 {
@@ -2024,17 +2379,15 @@ int main( int argc, char **argv)
 	struct timeval T1, T2;
 	int i = 0;
 	char* maddr;
-	pthread_t	thread_id[MAX_THREADS];
+	pthread_t thread_id[MAX_THREADS];
 	void* res;
-	int thread_info[MAX_THREADS];	
+	int thread_info[MAX_THREADS];
 	int cret;
 
-#if 1
 	if(argc <=1){
 		printf(USAGE);
 		return 0;
 	}
-#endif
 
 	/* set default */
 	strcpy(pathname, "./mobibench");
@@ -2042,7 +2395,7 @@ int main( int argc, char **argv)
 	reclen = 4;		/* 4KB */
 	g_access = 0;	/* Write */
 	g_sync = 0;		/* Normal */
-	num_threads = 1;	
+	num_threads = 1;
 	db_test_enable = 0;	/* DB off */
 	db_mode = 0;	/* insert */
 	db_transactions = 10;
@@ -2051,11 +2404,17 @@ int main( int argc, char **argv)
 	db_init_show = 0;
 	b_quiet = 0;
 	b_replay_script = 0;
+	db_interval= 0;
+        strcpy(REPORT_Latency, "./IO_Latency.txt");
+        strcpy(REPORT_pIOPS, "./IOPS.txt");
 	clearState();
-
+	numberOfTable = 3; /* TABLE COUNT*/
+	numberOfDB = 1; /* DB COUNT */
 	optind = 1;
 
-	while((cret = getopt(argc,argv,"p:f:r:a:y:t:d:n:j:s:g:hq")) != EOF){
+	overlap_ratio = 0;
+
+	while((cret = getopt(argc,argv,"p:f:r:a:y:t:d:n:j:s:g:i:hqL:k:v:T:D:R:")) != EOF){
 		switch(cret){
 			case 'p':
 				strcpy(pathname, optarg);
@@ -2099,6 +2458,34 @@ int main( int argc, char **argv)
 				script_path=optarg;
 				b_replay_script = 1;
 				break;
+			case 'i':
+				db_interval = atoi(optarg);
+				if(db_interval > 10000) db_interval = 10000;
+				break;
+			case 'L':
+				strcpy(REPORT_Latency, optarg);
+				Latency_state=1;
+				break;
+			case 'k':
+				strcpy(REPORT_pIOPS, optarg);
+				print_IOPS=1;
+				break;
+			case 'v':
+				overlap_ratio = atoi(optarg);
+				break;
+			case 'T':
+				numberOfTable = atoi(optarg);
+				if(numberOfTable > 20) numberOfTable = 20;
+				else if (numberOfTable < 1) numberOfTable = 1;
+				break;
+			case 'D':
+				numberOfDB = atoi(optarg);
+				if(numberOfDB > 20) numberOfDB = 20;
+				else if (numberOfDB < 1) numberOfDB = 1;
+				break;
+			case 'R':
+				random_insert = 1; // random insert to watch btree split
+				break;
 			default:
 				return 1;
 				break;
@@ -2107,21 +2494,32 @@ int main( int argc, char **argv)
 
 	if(b_replay_script == 1)
 	{
+		DIR* dir;
+		dir = opendir(pathname);
+		if(dir == NULL)
+		{
+			printf("Invalid path name %s\n", pathname);
+			setState(ERROR, "path name error");
+			goto out;
+		}
+
+		strcat(pathname, "/mobigen_temp");
+		mkdir(pathname, S_IRWXU | S_IRWXG | S_IRWXO);
 		replay_script();
 		goto out;
-	}	
+	}
 
 	if(num_threads > MAX_THREADS)
 		num_threads = MAX_THREADS;
 	else if(num_threads < 1)
 		num_threads = 1;
-		
+
 	real_reclen = reclen*SIZE_1KB;
   	kilo64 /= num_threads;
 	db_transactions /= num_threads;
-    numrecs64 = kilo64/reclen;	
-	filebytes64 = numrecs64*real_reclen; 
-	
+	numrecs64 = kilo64/reclen;
+	filebytes64 = numrecs64*real_reclen;
+
 	mkdir(pathname, S_IRWXU | S_IRWXG | S_IRWXO);
 
 #ifdef ANDROID_APP
@@ -2130,7 +2528,25 @@ int main( int argc, char **argv)
 		g_sync = 3;		/* 3=O_DIRECT */
 	}
 #endif
-	
+
+	if(Latency_state==1) // open a file to print latency output
+	{
+		if( (Latency_fp=fopen(REPORT_Latency,"a")) == 0 )
+		{
+			printf("Unable to open %s", REPORT_Latency);
+			perror("Failed to open a file");
+		}
+	}
+
+	if(print_IOPS==1) // open a file to print IOPS on every second
+	{
+		if( (pIOPS_fp=fopen(REPORT_pIOPS,"a")) == 0 )
+		{
+			printf("Unable to open %s", REPORT_pIOPS);
+			perror("Failed to open a file");
+		}
+	}
+
 	printf("-----------------------------------------\n");
 	printf("[mobibench measurement setup]\n");
 	printf("-----------------------------------------\n");
@@ -2138,18 +2554,20 @@ int main( int argc, char **argv)
 	if(db_test_enable == 0)
 	{
 		printf("File size per thread : %lld KB\n", kilo64);
-		printf("IO size : %lld KB\n", reclen);		
+		printf("IO size : %lld KB\n", reclen);
 		printf("IO count : %lld \n", numrecs64);
-		printf("Access Mode %d, Sync Mode %d\n", g_access, g_sync);	
+		printf("Access Mode %d, Sync Mode %d\n", g_access, g_sync);
 	}
 	else
 	{
 		printf("DB teset mode enabled.\n");
+		if(db_interval) printf("DB time interval : %d ms\n",db_interval);
 		printf("Operation : %d\n", db_mode);
 		printf("Transactions per thread: %d\n", db_transactions);
+		printf("# of Tables : %d\n",numberOfTable);
+		printf("# of Databases : %d\n",numberOfDB);
 	}
 	printf("# of Threads : %d\n", num_threads);
- 
 	/* Creating threads */
 	for(i = 0; i < num_threads; i++)
 	{
@@ -2165,15 +2583,13 @@ int main( int argc, char **argv)
 		if(ret < 0)
 		{
 			perror("pthread_create failed");
-			//exit(EXIT_FAILURE);
 			setState(ERROR, "pthread_create failed");
 			return -1;
 		}
-		//printf("pthread_create id : %d\n", (int)thread_id[i]);
 	}
 
 	setState(READY, NULL);
-	
+
 	/* Wait until all threads are ready to perform */
 	wait_thread_status(-1, READY, &thread_cond1);
 
@@ -2189,17 +2605,13 @@ int main( int argc, char **argv)
 	signal_thread_status(-1, EXEC, &thread_cond2);
 
 	if(getState() == ERROR)
-	{
 		goto out;
-	}
 
 	/* Wait until all threads done */
 	wait_thread_status(-1, END, &thread_cond3);
 
 	if(getState() == ERROR)
-	{
 		goto out;
-	}
 
 	printf("-----------------------------------------\n");
 	printf("[Messurement Result]\n");
@@ -2209,10 +2621,8 @@ int main( int argc, char **argv)
 	print_time(T1, T2);
 
 	if(num_threads == 1)
-	{
-		print_con_switches();	
-	}
-	
+		print_con_switches();
+
 	/* Join threads */
 	for(i = 0; i < num_threads; i++)
 	{
@@ -2224,14 +2634,14 @@ int main( int argc, char **argv)
 			setState(ERROR, "pthread_join failed");
 			return -1;
 		}
-		//free(res);
 	}
 
 	setState(END, NULL);
 
+	if(Latency_state==1) fclose(Latency_fp); // close latency file
+	if(print_IOPS==1) fclose(pIOPS_fp); // close latency file
+
 out:
-
 	printf("Err string : %s\n", g_err_string);
-
 	return 0;
 }

@@ -6,6 +6,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Message
 import android.util.Log
+import android.util.Log.INFO
 import esos.MobiBench.StorageOptions.determineStorageOptions
 import java.io.File
 
@@ -29,7 +30,6 @@ class MobiBenchExe : Thread {
             if (is_error != 0) {
                 return@apply
             }
-            RunSqlite()
             intent = Intent(con, DialogActivity::class.java)
             DialogActivity.check_using_db = 1
             con!!.startActivity(intent)
@@ -193,21 +193,6 @@ class MobiBenchExe : Thread {
         RunMobibench(eAccessMode.RANDOM_READ, eDbEnable.DB_DISABLE, eDbMode.INSERT)
     }
 
-    fun RunSqlite() {
-        var is_error = 0
-        RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.INSERT)
-        is_error = if (mobibenchState == 4) 1 else 0
-        if (is_error != 0) {
-            return
-        }
-        RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.UPDATE)
-        is_error = if (mobibenchState == 4) 1 else 0
-        if (is_error != 0) {
-            return
-        }
-        RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.DELETE)
-    }
-
     var runflag = false
 
     inner class ProgThread : Thread() {
@@ -302,5 +287,4 @@ class MobiBenchExe : Thread {
     fun rt_sd():String?{
         return sdcard_2nd_path
     }
-
 }

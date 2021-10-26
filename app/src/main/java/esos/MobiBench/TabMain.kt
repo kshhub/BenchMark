@@ -32,7 +32,6 @@ class TabMain : TabActivity() {
     private var prefs: SharedPreferences? = null
     private var editor: SharedPreferences.Editor? = null
     private var db_index = 0
-    private var root_flag = false
     private val set: Setting = Setting()
 
     //private EditText et_io_size = null;
@@ -129,7 +128,6 @@ class TabMain : TabActivity() {
 
         /* Preference Control */
         prefs = getSharedPreferences("Setting", MODE_PRIVATE)
-        root_flag = prefs!!.getBoolean("init_flag", true)
         editor = prefs!!.edit()
 
         /*jwgom
@@ -264,12 +262,8 @@ class TabMain : TabActivity() {
 
 
         /* First Warning message control */
-        if (root_flag) {
-            set_default()
-            startActivityForResult(Intent(this@TabMain, First::class.java), 0)
-        } else {
-            load_init()
-        }
+        load_init()
+
 
         // Activity가 실행 중인 동안 화면을 밝게 유지합니다.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -349,36 +343,36 @@ class TabMain : TabActivity() {
         //print_values();
     }
 
-    fun set_default() {
-        editor!!.putInt("p_target_partition", 0)
-        set.set_target_partition(0)
-        editor!!.putInt("p_threadnum", 1)
-        set.set_thread_num(1)
-        editor!!.putInt("p_filesize_w", 10)
-        set.set_filesize_write(10)
-        editor!!.putInt("p_filesize_r", 32)
-        set.set_filesize_read(32)
-        editor!!.putInt("p_io_size", 0)
-        set.set_io_size(0)
-        editor!!.putInt("p_file_sync_mode", 3)
-        set.set_file_sync_mode(0)
-        editor!!.putInt("p_transaction", 100)
-        set.set_transaction_num(100)
-        editor!!.putInt("p_sql_sync_mode", 2)
-        set.set_sql_sync_mode(1)
-        editor!!.putInt("p_journal_mode", 1)
-        set.set_journal_mode(1)
-        editor!!.putInt("p_cb_count", 0)
-
-        editor!!.putBoolean("p_cb_sw", false)
-        editor!!.putBoolean("p_cb_sr", false)
-        editor!!.putBoolean("p_cb_rw", false)
-        editor!!.putBoolean("p_cb_rr", false)
-        editor!!.putBoolean("p_cb_insert", false)
-        editor!!.putBoolean("p_cb_update", false)
-        editor!!.putBoolean("p_cb_delete", false)
-        editor!!.commit()
-    }
+//    fun set_default() {
+//        editor!!.putInt("p_target_partition", 0)
+//        set.set_target_partition(0)
+//        editor!!.putInt("p_threadnum", 1)
+//        set.set_thread_num(1)
+//        editor!!.putInt("p_filesize_w", 10)
+//        set.set_filesize_write(10)
+//        editor!!.putInt("p_filesize_r", 32)
+//        set.set_filesize_read(32)
+//        editor!!.putInt("p_io_size", 0)
+//        set.set_io_size(0)
+//        editor!!.putInt("p_file_sync_mode", 3)
+//        set.set_file_sync_mode(0)
+//        editor!!.putInt("p_transaction", 100)
+//        set.set_transaction_num(100)
+//        editor!!.putInt("p_sql_sync_mode", 2)
+//        set.set_sql_sync_mode(1)
+//        editor!!.putInt("p_journal_mode", 1)
+//        set.set_journal_mode(1)
+//        editor!!.putInt("p_cb_count", 0)
+//
+//        editor!!.putBoolean("p_cb_sw", false)
+//        editor!!.putBoolean("p_cb_sr", false)
+//        editor!!.putBoolean("p_cb_rw", false)
+//        editor!!.putBoolean("p_cb_rr", false)
+//        editor!!.putBoolean("p_cb_insert", false)
+//        editor!!.putBoolean("p_cb_update", false)
+//        editor!!.putBoolean("p_cb_delete", false)
+//        editor!!.commit()
+//    }
 
     fun print_error(type: Int) {
         when (type) {
