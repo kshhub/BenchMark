@@ -6,6 +6,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Message
 import android.util.Log
+import android.util.Log.INFO
 import esos.MobiBench.StorageOptions.determineStorageOptions
 import java.io.File
 
@@ -24,51 +25,14 @@ class MobiBenchExe : Thread {
     override fun run() {
         var is_error = 0
         select_flag.apply {
-            when (select_flag) {
-                0 -> {
-                    RunFileIO()
-                    is_error = if (mobibenchState == 4) 1 else 0
-                    if (is_error != 0) {
-                        return@apply
-                    }
-                    RunSqlite()
-                    intent = Intent(con, DialogActivity::class.java)
-                    DialogActivity.check_using_db = 1
-                    con!!.startActivity(intent)
-                }
-                1 -> {
-                    RunFileIO()
-                    is_error = if (mobibenchState == 4) 1 else 0
-                    if (is_error != 0) {
-                        return@apply
-                    }
-                    intent = Intent(con, DialogActivity::class.java)
-                    DialogActivity.check_using_db = 1
-                    con!!.startActivity(intent)
-                }
-                2 -> {
-                    RunSqlite()
-                    is_error = if (mobibenchState == 4) 1 else 0
-                    if (is_error != 0) {
-                        return@apply
-                    }
-                    intent = Intent(con, DialogActivity::class.java)
-                    DialogActivity.check_using_db = 1
-                    con!!.startActivity(intent)
-                }
-                3 -> {
-                    Log.d(DEBUG_TAG, "[RunSQL] - select_flag" + select_flag)
-                    RunCustom()
-                    is_error = if (mobibenchState == 4) 1 else 0
-                    if (is_error != 0) {
-                        return@apply
-                    }
-                    Log.d(DEBUG_TAG, "[RunSQL] - work done")
-                    intent = Intent(con, DialogActivity::class.java)
-                    DialogActivity.check_using_db = 1
-                    con!!.startActivity(intent)
-                }
+            RunFileIO()
+            is_error = if (mobibenchState == 4) 1 else 0
+            if (is_error != 0) {
+                return@apply
             }
+            intent = Intent(con, DialogActivity::class.java)
+            DialogActivity.check_using_db = 1
+            con!!.startActivity(intent)
         }
         DeleteDir(exe_path)
         msg = Message.obtain(mHandler, 444, is_error, 0, null)
@@ -186,12 +150,7 @@ class MobiBenchExe : Thread {
 
     fun SendResult(result_id: Int) {
         printResult()
-        when (select_flag) {
-            0 -> DialogActivity.ResultType[result_id] = " ▣ Test: All        "
-            1 -> DialogActivity.ResultType[result_id] = " ▣ Test: File IO"
-            2 -> DialogActivity.ResultType[result_id] = " ▣ Test: SQLite"
-            3 -> DialogActivity.ResultType[result_id] = " ▣ Test: My test"
-        }
+        DialogActivity.ResultType[result_id] = " ▣ Test: All        "
         DialogActivity.ResultCPU_act[result_id] = String.format("%.0f", cpu_active)
         DialogActivity.ResultCPU_iow[result_id] = String.format("%.0f", cpu_iowait)
         DialogActivity.ResultCPU_idl[result_id] = String.format("%.0f", cpu_idle)
@@ -232,76 +191,6 @@ class MobiBenchExe : Thread {
             return
         }
         RunMobibench(eAccessMode.RANDOM_READ, eDbEnable.DB_DISABLE, eDbMode.INSERT)
-    }
-
-    fun RunSqlite() {
-        var is_error = 0
-        RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.INSERT)
-        is_error = if (mobibenchState == 4) 1 else 0
-        if (is_error != 0) {
-            return
-        }
-        RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.UPDATE)
-        is_error = if (mobibenchState == 4) 1 else 0
-        if (is_error != 0) {
-            return
-        }
-        RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.DELETE)
-    }
-
-    fun RunCustom() {
-        var is_error = 0
-        val set = Setting()
-        if (set.get_seq_write() == true) {
-            RunMobibench(eAccessMode.WRITE, eDbEnable.DB_DISABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_seq_read() == true) {
-            RunMobibench(eAccessMode.READ, eDbEnable.DB_DISABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_ran_write() == true) {
-            RunMobibench(eAccessMode.RANDOM_WRITE, eDbEnable.DB_DISABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_ran_read() == true) {
-            RunMobibench(eAccessMode.RANDOM_READ, eDbEnable.DB_DISABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_insert() == true) {
-            RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.INSERT)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_update() == true) {
-            RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.UPDATE)
-            is_error = if (mobibenchState == 4) 1 else 0
-            if (is_error != 0) {
-                return
-            }
-        }
-        if (set.get_delete() == true) {
-            RunMobibench(eAccessMode.WRITE, eDbEnable.DB_ENABLE, eDbMode.DELETE)
-        }
-    }
-
-    fun setMobiBenchExe(flag: Int) {
-        select_flag = flag
-        Log.d(DEBUG_TAG, "MBE - select flag is " + select_flag)
     }
 
     var runflag = false
@@ -398,5 +287,4 @@ class MobiBenchExe : Thread {
     fun rt_sd():String?{
         return sdcard_2nd_path
     }
-
 }

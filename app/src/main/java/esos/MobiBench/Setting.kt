@@ -91,77 +91,6 @@ class Setting {
     }
 
     /* Check box variable control function */
-    fun set_seq_write(value: Boolean) {
-        seq_write = value
-        return
-    }
-
-    fun get_seq_write(): Boolean {
-        return seq_write
-    }
-
-    fun set_seq_read(value: Boolean) {
-        seq_read = value
-        return
-    }
-
-    fun get_seq_read(): Boolean {
-        return seq_read
-    }
-
-    fun set_ran_write(value: Boolean) {
-        ran_write = value
-        return
-    }
-
-    fun get_ran_write(): Boolean {
-        return ran_write
-    }
-
-    fun set_ran_read(value: Boolean) {
-        ran_read = value
-        return
-    }
-
-    fun get_ran_read(): Boolean {
-        return ran_read
-    }
-
-    fun set_insert(value: Boolean) {
-        insert = value
-        return
-    }
-
-    fun get_insert(): Boolean {
-        return insert
-    }
-
-    fun set_update(value: Boolean) {
-        update = value
-        return
-    }
-
-    fun get_update(): Boolean {
-        return update
-    }
-
-    fun set_delete(value: Boolean) {
-        delete = value
-        return
-    }
-
-    fun get_delete(): Boolean {
-        return delete
-    }
-
-    fun set_cb_count(count: Int) {
-        cb_count = count
-        return
-    }
-
-    fun get_cb_count(): Int {
-        return cb_count
-    }
 
     companion object {
         private var target_partition = 0
@@ -173,13 +102,5 @@ class Setting {
         private var transaction_num = 0
         private var sql_sync_mode = 0
         private var journal_mode = 0
-        private var seq_write = false
-        private var seq_read = false
-        private var ran_write = false
-        private var ran_read = false
-        private var insert = false
-        private var update = false
-        private var delete = false
-        private var cb_count = 0
     }
 }
