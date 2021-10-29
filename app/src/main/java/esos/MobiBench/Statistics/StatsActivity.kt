@@ -1,7 +1,8 @@
-package esos.MobiBench.Stat
+package esos.MobiBench.Statistics
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.RadioGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.github.mikephil.charting.charts.BarChart
@@ -17,6 +18,7 @@ import esos.MobiBench.R
 
 class StatsActivity : AppCompatActivity() {
 
+    private val selectItems = arrayOf("Seq.Write", "Seq.Read", "Rand.Write", "Rand.Read")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,12 +27,33 @@ class StatsActivity : AppCompatActivity() {
     }
 
     private fun init(){
+
+        val radioGroup = findViewById<RadioGroup>(R.id.radioGroup)
+        var barChart: BarChart = findViewById(R.id.Chart) // barChart 생성
+
+
+        radioGroup.setOnCheckedChangeListener { radioGroup, i ->
+            when(i){
+                R.id.radioButton1 -> setStats(barChart, 0)
+                R.id.radioButton2 -> setStats(barChart, 1)
+                R.id.radioButton3 -> setStats(barChart, 2)
+                R.id.radioButton4 -> setStats(barChart, 3)
+            }
+        }
+
+
+    }
+
+    private fun setStats(barChart:BarChart, type:Int){
+
         var dbAdapter = NotesDbAdapter(this)
         dbAdapter!!.open()
 
         val row:Int = dbAdapter.getNum()+1
         val col:Int = 10
         var multiIntArray: Array<IntArray> = Array<IntArray>(row) { IntArray(4) }
+        var max:Float = 0f
+
         for(i in 0 until row){
             val strsample = dbAdapter!!.findthrp(i)
             val result = strsample.split("KB/s", "IOPS(4KB)"," ")
@@ -42,33 +65,23 @@ class StatsActivity : AppCompatActivity() {
             }
         }
 
-        var prac:String = ""
-        for(i in 0 until row){
-            for(j in 0 until col){
-                //prac = prac + multiIntArray[i][j].toString()
+        val entries = ArrayList<BarEntry>()
+        if(row>7) {
+            for (i in row-7 until row) {
+                entries.add(BarEntry((i - (row-7) + 1).toFloat(), multiIntArray[i][type].toFloat()))
+                if (multiIntArray[i][type] > max) {
+                    max = multiIntArray[i][type].toFloat()
+                }
+            }
+        }else{
+            for (i in 0 until row) {
+                entries.add(BarEntry((i + 1).toFloat(), multiIntArray[i][type].toFloat()))
+                if (multiIntArray[i][type] > max) {
+                    max = multiIntArray[i][type].toFloat()
+                }
             }
         }
-        //tv.text = prac
 
-
-
-        var barChart: BarChart = findViewById(R.id.Chart) // barChart 생성
-
-        val entries = ArrayList<BarEntry>()
-
-        for(i in 0 until row){
-            entries.add(BarEntry((i+1).toFloat(),multiIntArray[i][0].toFloat()))
-        }
-
-        /*
-        entries.add(BarEntry(1.2f,20.0f))
-        entries.add(BarEntry(2.2f,70.0f))
-        entries.add(BarEntry(3.2f,30.0f))
-        entries.add(BarEntry(4.2f,90.0f))
-        entries.add(BarEntry(5.2f,70.0f))
-        entries.add(BarEntry(6.2f,30.0f))
-        entries.add(BarEntry(7.2f,90.0f))
-    */
         barChart.run {
             description.isEnabled = false // 차트 옆에 별도로 표기되는 description을 안보이게 설정 (false)
             setMaxVisibleValueCount(7) // 최대 보이는 그래프 개수를 7개로 지정
@@ -77,7 +90,7 @@ class StatsActivity : AppCompatActivity() {
             setDrawGridBackground(false)//격자구조 넣을건지
             axisLeft.run { //왼쪽 축. 즉 Y방향 축을 뜻한다.
                 //axisMaximum = 101f //100 위치에 선을 그리기 위해 101f로 맥시멈값 설정
-                axisMaximum = 300000f
+                axisMaximum = max
                 axisMinimum = 0f // 최소값 0
                 granularity = 50f // 50 단위마다 선을 그리려고 설정.
                 setDrawLabels(true) // 값 적는거 허용 (0, 50, 100)
@@ -118,7 +131,7 @@ class StatsActivity : AppCompatActivity() {
     }
 
     inner class MyXAxisFormatter : ValueFormatter() {
-        private val days = arrayOf("1차","2차","3차","4차","5차","6차","7차")
+        private val days = arrayOf("1st","2nd","3rd","4th","5th","6th","7th")
         override fun getAxisLabel(value: Float, axis: AxisBase?): String {
             return days.getOrNull(value.toInt()-1) ?: value.toString()
         }

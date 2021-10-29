@@ -14,7 +14,7 @@ import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
-import esos.MobiBench.Stat.StatsActivity
+import esos.MobiBench.Statistics.StatsActivity
 import java.util.*
 
 
@@ -124,8 +124,13 @@ class TabMain : TabActivity() {
 
         val btnstats = findViewById<Button>(R.id.buttonStats)
         btnstats.setOnClickListener {
-            val intent = Intent(this, StatsActivity::class.java)
-            startActivity(intent)
+            val dbfile = getDatabasePath("MobiDB.db")
+            if(!dbfile.exists()){
+                Toast.makeText(this,"No data",Toast.LENGTH_SHORT).show()
+            }else {
+                val intent = Intent(this, StatsActivity::class.java)
+                startActivity(intent)
+            }
         }
 
         /* For Animation*/
@@ -305,7 +310,7 @@ class TabMain : TabActivity() {
             btn_clk_check = false
             Log.d(DEBUG_TAG, "[TM] BTN_CLICK:TRUE" + "[" + btn_clk_check + "]")
             DialogActivity.ClearResult(dbAdapter)
-            Toast.makeText(this, "Start Benchmark : File, SQlite", Toast.LENGTH_SHORT).show()
+            //Toast.makeText(this, "Start Benchmark : File, SQlite", Toast.LENGTH_SHORT).show()
             mb_thread = MobiBenchExe(con, mHandler)
             mb_thread!!.start()
         }
