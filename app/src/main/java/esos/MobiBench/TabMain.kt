@@ -1,6 +1,5 @@
 package esos.MobiBench
 
-import android.app.AlertDialog
 import android.app.TabActivity
 import android.content.Context
 import android.content.Intent
@@ -10,20 +9,12 @@ import android.content.pm.PackageManager
 import android.database.Cursor
 import android.graphics.Color
 import android.graphics.drawable.AnimationDrawable
-import android.net.ConnectivityManager
-import android.net.Uri
 import android.os.*
 import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.math.BigInteger
-import java.net.HttpURLConnection
-import java.net.URL
-import java.security.MessageDigest
-import java.security.NoSuchAlgorithmException
+import esos.MobiBench.Stat.StatsActivity
 import java.util.*
 
 
@@ -129,6 +120,12 @@ class TabMain : TabActivity() {
                 tabHost.tabWidget.getChildAt(1).setBackgroundColor(Color.parseColor("#CDDF94"))
                 tabHost.tabWidget.getChildAt(0).setBackgroundColor(Color.parseColor("#B5E61D"))
             }
+        }
+
+        val btnstats = findViewById<Button>(R.id.buttonStats)
+        btnstats.setOnClickListener {
+            val intent = Intent(this, StatsActivity::class.java)
+            startActivity(intent)
         }
 
         /* For Animation*/
@@ -297,25 +294,6 @@ class TabMain : TabActivity() {
                 finish()
             }
         }
-    }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (!mFlag) {
-                Toast.makeText(
-                    this@TabMain,
-                    "Press the \"Back button\" again to exit",
-                    Toast.LENGTH_SHORT
-                ).show()
-                mFlag = true
-                mHandler.sendEmptyMessageDelayed(666, 2000)
-                return false
-            } else {
-                setResult(RESULT_CANCELED)
-                finish()
-            }
-        }
-        return super.onKeyDown(keyCode, event)
     }
 
     /* (stage 1) */
