@@ -122,14 +122,22 @@ class TabMain : TabActivity() {
             }
         }
 
+        var dbAdapter = NotesDbAdapter(this)
+        dbAdapter!!.open()
+
         val btnstats = findViewById<Button>(R.id.buttonStats)
         btnstats.setOnClickListener {
-            val dbfile = getDatabasePath("MobiDB.db")
+            val dbfile = getDatabasePath("MobiDB")
             if(!dbfile.exists()){
                 Toast.makeText(this,"No data",Toast.LENGTH_SHORT).show()
             }else {
-                val intent = Intent(this, StatsActivity::class.java)
-                startActivity(intent)
+                if(dbAdapter.isEmpty()){
+                    Toast.makeText(this,"No data",Toast.LENGTH_SHORT).show()
+                }
+                else{
+                    val intent = Intent(this, StatsActivity::class.java)
+                    startActivity(intent)
+                }
             }
         }
 

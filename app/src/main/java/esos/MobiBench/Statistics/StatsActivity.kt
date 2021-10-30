@@ -18,8 +18,6 @@ import esos.MobiBench.R
 
 class StatsActivity : AppCompatActivity() {
 
-    private val selectItems = arrayOf("Seq.Write", "Seq.Read", "Rand.Write", "Rand.Read")
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_stats)

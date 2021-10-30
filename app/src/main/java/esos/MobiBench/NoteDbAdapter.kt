@@ -36,10 +36,6 @@ class NotesDbAdapter(private val mCtx: Context) {
         return this
     }
 
-    fun close() {
-        mDbHelper!!.close()
-    }
-
     fun insert_DB(
         _id: Int,
         date: String?,
@@ -77,6 +73,17 @@ class NotesDbAdapter(private val mCtx: Context) {
         cursor.close()
         db.close()
         return pos
+    }
+
+    fun isEmpty():Boolean{
+        val strsql = "select * from mobidb"
+        val db = mDbHelper!!.readableDatabase
+        val cursor = db.rawQuery(strsql, null)
+        if(cursor.moveToFirst()){
+            return false
+        }else{
+            return true
+        }
     }
 
     fun findthrp(kid: Int): String {
