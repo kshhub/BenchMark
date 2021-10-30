@@ -1,6 +1,5 @@
 package esos.MobiBench
 
-import android.app.AlertDialog
 import android.app.TabActivity
 import android.content.Context
 import android.content.Intent
@@ -10,20 +9,12 @@ import android.content.pm.PackageManager
 import android.database.Cursor
 import android.graphics.Color
 import android.graphics.drawable.AnimationDrawable
-import android.net.ConnectivityManager
-import android.net.Uri
 import android.os.*
 import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.AdapterView.OnItemClickListener
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.math.BigInteger
-import java.net.HttpURLConnection
-import java.net.URL
-import java.security.MessageDigest
-import java.security.NoSuchAlgorithmException
+import esos.MobiBench.Statistics.StatsActivity
 import java.util.*
 
 
@@ -128,6 +119,25 @@ class TabMain : TabActivity() {
             }else{
                 tabHost.tabWidget.getChildAt(1).setBackgroundColor(Color.parseColor("#CDDF94"))
                 tabHost.tabWidget.getChildAt(0).setBackgroundColor(Color.parseColor("#B5E61D"))
+            }
+        }
+
+        var dbAdapter = NotesDbAdapter(this)
+        dbAdapter!!.open()
+
+        val btnstats = findViewById<Button>(R.id.buttonStats)
+        btnstats.setOnClickListener {
+            val dbfile = getDatabasePath("MobiDB")
+            if(!dbfile.exists()){
+                Toast.makeText(this,"No data",Toast.LENGTH_SHORT).show()
+            }else {
+                if(dbAdapter.isEmpty()){
+                    Toast.makeText(this,"No data",Toast.LENGTH_SHORT).show()
+                }
+                else{
+                    val intent = Intent(this, StatsActivity::class.java)
+                    startActivity(intent)
+                }
             }
         }
 
@@ -299,25 +309,6 @@ class TabMain : TabActivity() {
         }
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (!mFlag) {
-                Toast.makeText(
-                    this@TabMain,
-                    "Press the \"Back button\" again to exit",
-                    Toast.LENGTH_SHORT
-                ).show()
-                mFlag = true
-                mHandler.sendEmptyMessageDelayed(666, 2000)
-                return false
-            } else {
-                setResult(RESULT_CANCELED)
-                finish()
-            }
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-
     /* (stage 1) */
     private fun startMobibenchExe() {
         if (btn_clk_check == false) {
@@ -327,7 +318,7 @@ class TabMain : TabActivity() {
             btn_clk_check = false
             Log.d(DEBUG_TAG, "[TM] BTN_CLICK:TRUE" + "[" + btn_clk_check + "]")
             DialogActivity.ClearResult(dbAdapter)
-            Toast.makeText(this, "Start Benchmark : File, SQlite", Toast.LENGTH_SHORT).show()
+            //Toast.makeText(this, "Start Benchmark : File, SQlite", Toast.LENGTH_SHORT).show()
             mb_thread = MobiBenchExe(con, mHandler)
             mb_thread!!.start()
         }

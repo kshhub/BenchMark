@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="esos.MobiBench">
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
-    <uses-permission android:name="android.permission.RESTART_PACKAGES"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:allowBackup="true"
@@ -16,19 +14,22 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/CustomTheme">
-        <activity android:name="esos.MobiBench.TabMain"
-            android:theme="@android:style/Theme.Black.NoTitleBar"
-            android:exported="true">
+        android:theme="@style/Theme.JKL">
+        <activity android:name="esos.MobiBench.Statistics.StatsActivity"/>
+        <activity android:name="esos.MobiBench.UserActivity" />
+        <activity android:name="esos.MobiBench.HomeActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
         </activity>
+        <activity android:name="esos.MobiBench.TabMain"
+            android:theme="@android:style/Theme.Black.NoTitleBar"
+            android:exported="true"></activity>
         <activity android:name="esos.MobiBench.First" />
-        <activity android:name="esos.MobiBench.DialogActivity" />
+        <activity android:name="esos.MobiBench.DialogActivity"
+            android:theme="@style/CustomTheme"/>
     </application>
 
 </manifest>

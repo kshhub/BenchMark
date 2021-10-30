@@ -1,6 +1,5 @@
 <resources>
-    <string name="app_name">MobiBench</string>
-    <string name="hello">Hello World, MobiBench!</string>
+    <string name="app_name">JKL</string>
     <string name="sp_partition">Partition</string>
     <string name="sp_file_sync">File Sync Mode</string>
     <string name="sp_sql_sync">File Sql Mode</string>

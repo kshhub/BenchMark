@@ -36,10 +36,6 @@ class NotesDbAdapter(private val mCtx: Context) {
         return this
     }
 
-    fun close() {
-        mDbHelper!!.close()
-    }
-
     fun insert_DB(
         _id: Int,
         date: String?,
@@ -67,39 +63,44 @@ class NotesDbAdapter(private val mCtx: Context) {
         initialValues.put(KEY_EXP_NAME, exp_name)
         return mDb!!.insert(DATABASE_TABLE, null, initialValues)
     }
-    /*
-    fun selectTable(index: String?): Cursor {
-        return mDb!!.rawQuery("SELECT * FROM mobidb WHERE _id = index", null)
+
+    fun getNum():Int{
+        val strsql = "select $KEY_ID from mobidb"
+        val db = mDbHelper!!.readableDatabase
+        val cursor = db.rawQuery(strsql, null)
+        cursor.moveToLast()
+        val pos:Int = cursor.getInt(0)
+        cursor.close()
+        db.close()
+        return pos
     }
-    */
-    /*
-    public boolean deleteNote(long rowId) {
-        Log.i("Delete called", "value__" + rowId);
-        return mDb.delete(DATABASE_TABLE, KEY_ROWID + "=" + rowId, null) > 0;
+
+    fun isEmpty():Boolean{
+        val strsql = "select * from mobidb"
+        val db = mDbHelper!!.readableDatabase
+        val cursor = db.rawQuery(strsql, null)
+        if(cursor.moveToFirst()){
+            return false
+        }else{
+            return true
+        }
     }
-	 */
-    fun fetchAllNotes(): Cursor {
-        return mDb!!.query(
-            DATABASE_TABLE,
-            arrayOf(
-                KEY_ID,
-                KEY_DATE,
-                KEY_TYPE,
-                KEY_HAS_RESULT,
-                KEY_ACT,
-                KEY_IO,
-                KEY_IDL,
-                KEY_CT_TOTAL,
-                KEY_CT_VOL,
-                KEY_THRP,
-                KEY_EXP_NAME
-            ),
-            null,
-            null,
-            null,
-            null,
-            null
-        )
+
+    fun findthrp(kid: Int): String {
+        val strsql = "select $KEY_THRP from mobidb where $KEY_ID='$kid'"
+        val db = mDbHelper!!.readableDatabase
+        val cursor = db.rawQuery(strsql, null)
+        val cursorlast = db.rawQuery(strsql, null)
+        var str: String = ""
+        cursor.moveToFirst()
+        cursorlast.moveToLast()
+        while (cursor.position!=cursorlast.position+1) {
+            str = str + cursor.getString(0) + " "
+            cursor.moveToNext()
+        }
+        cursor.close()
+        db.close()
+        return str
     }
 
     @Throws(SQLException::class)
