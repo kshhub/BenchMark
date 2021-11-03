@@ -36,14 +36,14 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="exp_name"
-					android:textColor="#ffffff"
+					android:textColor="#000000"
 					android:textSize="17dip"></TextView>
 
 				<TextView
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text=" : "
-					android:textColor="#ffffff"
+					android:textColor="#000000"
 					android:textSize="17dip"></TextView>
 
 				<TextView
@@ -51,7 +51,7 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="35"
-					android:textColor="#ffffff"
+					android:textColor="#000000"
 					android:textSize="17dip"></TextView>
 			</LinearLayout>
 
@@ -59,7 +59,7 @@
 				android:layout_width="fill_parent"
 				android:layout_height="wrap_content"
 				android:layout_marginBottom="3dip"
-				android:background="#E0FFFF"
+				android:background="#9FC573"
 				android:text=" "
 				android:textSize="1dp"></TextView>
 
@@ -72,54 +72,62 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="· CPU : "
-					android:textColor="#ffffff"></TextView>
+					android:textColor="#000000"></TextView>
 
 				<TextView
 					android:id="@+id/tmp_txt1r"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text="Busy("></TextView>
+					android:text="Busy("
+					android:textColor="#403F3F"></TextView>
 
 				<TextView
 					android:id="@+id/dataItem01r"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text="30" />
+					android:text="30"
+					android:textColor="#403F3F" />
 
 				<TextView
 					android:id="@+id/tmp_txt2r"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text="), IOw("></TextView>
+					android:text="), IOw("
+					android:textColor="#403F3F"></TextView>
 
 				<TextView
 					android:id="@+id/dataItem02r"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text="40" />
+					android:text="40"
+					android:textColor="#403F3F" />
 
 				<TextView
 					android:id="@+id/tmp_txt3r"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text="), "></TextView>
+					android:text="), "
+					android:textColor="#403F3F"></TextView>
 
 				<TextView
 					android:id="@+id/tmp_txt4r"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text="Idle("></TextView>
+					android:text="Idle("
+					android:textColor="#403F3F"></TextView>
 
 				<TextView
 					android:id="@+id/dataItem03r"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text="29" />
+					android:text="29"
+					android:textColor="#403F3F" />
 
 				<TextView
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text=")"></TextView>
+					android:text=")"
+					android:textColor="#403F3F"></TextView>
 
 			</LinearLayout>
 
@@ -132,24 +140,27 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="· Ctx SW : "
-					android:textColor="#ffffff"></TextView>
+					android:textColor="#000000"></TextView>
 
 				<TextView
 					android:id="@+id/dataItem04r"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text="1000"></TextView>
+					android:text="1000"
+					android:textColor="#403F3F"></TextView>
 
 				<TextView
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text=" ("></TextView>
+					android:text=" ("
+					android:textColor="#403F3F"></TextView>
 
 				<TextView
 					android:id="@+id/dataItem05r"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:text="500"></TextView>
+					android:text="500"
+					android:textColor="#403F3F"></TextView>
 
 				<TextView
 					android:layout_width="wrap_content"

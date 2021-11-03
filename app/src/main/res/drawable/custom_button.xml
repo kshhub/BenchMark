@@ -12,5 +12,5 @@
         android:color="#76ff03"/>
     <gradient
         android:startColor="#B5E61D"
-        android:endColor="#F1FBD5"/>
+        android:endColor="#CFE881"/>
 </shape>
