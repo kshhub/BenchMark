@@ -40,7 +40,7 @@
                     android:layout_marginLeft="5dp"
                     android:layout_marginEnd="5dp"
                     android:gravity="center"
-                    android:text="BeginDate" />
+                    android:text="시작일" />
 
                 <EditText
                     android:id="@+id/editTextBegin"
@@ -60,7 +60,7 @@
                     android:layout_marginEnd="5dp"
                     android:layout_marginRight="5dp"
                     android:layout_weight="1"
-                    android:text="days ago" />
+                    android:text="일 전" />
 
             </LinearLayout>
 
@@ -79,7 +79,7 @@
                     android:layout_marginLeft="5dp"
                     android:layout_marginEnd="10dp"
                     android:gravity="center"
-                    android:text="EndDate" />
+                    android:text="종료일" />
 
                 <EditText
                     android:id="@+id/editTextEnd"
@@ -97,7 +97,7 @@
                     android:layout_marginEnd="5dp"
                     android:layout_marginRight="5dp"
                     android:layout_weight="1"
-                    android:text="days ago" />
+                    android:text="일 전" />
 
             </LinearLayout>
         </LinearLayout>
@@ -110,7 +110,7 @@
             android:layout_marginLeft="10dp"
             android:layout_marginTop="30dp"
             android:background="@drawable/custom_button"
-            android:text="Run"
+            android:text="실행"
             app:backgroundTint="@null"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/spinnerBegin" />
@@ -141,7 +141,7 @@
                 android:shadowDx="5"
                 android:shadowDy="5"
                 android:shadowRadius="5"
-                android:text="BeginDate"
+                android:text="시작일"
                 android:textColor="#8BC34A"
                 android:textSize="20sp" />
 
@@ -155,7 +155,7 @@
                 android:shadowDx="5"
                 android:shadowDy="5"
                 android:shadowRadius="5"
-                android:text="EndDate"
+                android:text="종료일"
                 android:textColor="#8BC34A"
                 android:textSize="20sp" />
         </LinearLayout>
@@ -197,7 +197,7 @@
             android:shadowDx="5"
             android:shadowDy="5"
             android:shadowRadius="5"
-            android:text="TotalTime"
+            android:text="핸드폰 사용 시간"
             android:textColor="#8BC34A"
             android:textSize="20sp" />
 
@@ -209,7 +209,6 @@
             android:layout_marginBottom="5dp"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="h  m"
             android:textSize="20sp" />
     </LinearLayout>
 

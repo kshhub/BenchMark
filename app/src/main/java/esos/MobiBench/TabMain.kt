@@ -129,10 +129,10 @@ class TabMain : TabActivity() {
         btnstats.setOnClickListener {
             val dbfile = getDatabasePath("MobiDB")
             if(!dbfile.exists()){
-                Toast.makeText(this,"No data",Toast.LENGTH_SHORT).show()
+                Toast.makeText(this,"기록이 없습니다.",Toast.LENGTH_SHORT).show()
             }else {
                 if(dbAdapter.isEmpty()){
-                    Toast.makeText(this,"No data",Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this,"기록이 없습니다.",Toast.LENGTH_SHORT).show()
                 }
                 else{
                     val intent = Intent(this, StatsActivity::class.java)
