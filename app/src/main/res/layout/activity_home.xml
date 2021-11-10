@@ -9,24 +9,26 @@
 
     <Button
         android:id="@+id/buttonBench"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="150dp"
+        android:layout_height="60dp"
         android:layout_gravity="center"
         android:layout_marginTop="200dp"
         android:background="@drawable/custom_button"
-        android:text="BenchMark"
+        android:text="벤치마크"
+        android:textSize="17sp"
         app:backgroundTint="@null"
         app:layout_constraintStart_toStartOf="@+id/buttonPhone"
         app:layout_constraintTop_toBottomOf="@+id/buttonPhone" />
 
     <Button
         android:id="@+id/buttonUser"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="150dp"
+        android:layout_height="60dp"
         android:layout_gravity="center"
         android:layout_marginTop="100dp"
         android:background="@drawable/custom_button"
-        android:text="User Pattern\nAnalysis"
+        android:text="사용자 \n패턴 분석"
+        android:textSize="17sp"
         app:backgroundTint="@null"
         app:layout_constraintBottom_toTopOf="@+id/buttonPhone"
         app:layout_constraintEnd_toEndOf="@+id/buttonPhone" />

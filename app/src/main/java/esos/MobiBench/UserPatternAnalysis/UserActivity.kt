@@ -45,16 +45,21 @@ class UserActivity : AppCompatActivity() {
     private fun init(){
 
         binding.buttonRun.setOnClickListener {
-            if(beginDay<0 || beginDay>1000 || endDay<0 || endDay>1000 || beginDay==null || endDay==null){
-                Toast.makeText(this, "Please enter a value between 0 and 1000",Toast.LENGTH_SHORT).show()
+            if(binding.editTextBegin.text.toString() == "" || binding.editTextBegin.text.toString()==null ||
+                binding.editTextEnd.text.toString() == "" || binding.editTextEnd.text.toString()==null){
+                Toast.makeText(this, "기간을 입력하세요.",Toast.LENGTH_SHORT).show()
             }else{
-                beginDay = binding.editTextBegin.text.toString().toInt()
-                endDay = binding.editTextEnd.text.toString().toInt()
-                showAppUsageStats(getAppUsageStats())
-                initRecyclerView()
-                initValue()
-                calculateTotalTime()
-                setText(binding.textViewBegin, binding.textViewEnd, binding.textViewTime)
+                if(beginDay<0 || beginDay>1000 || endDay<0 || endDay>1000){
+                    Toast.makeText(this, "0 과 1000 사이의 값을 입력하세요.",Toast.LENGTH_SHORT).show()
+                }else{
+                    beginDay = binding.editTextBegin.text.toString().toInt()
+                    endDay = binding.editTextEnd.text.toString().toInt()
+                    showAppUsageStats(getAppUsageStats())
+                    initRecyclerView()
+                    initValue()
+                    calculateTotalTime()
+                    setText(binding.textViewBegin, binding.textViewEnd, binding.textViewTime)
+                }
             }
         }
     }
@@ -138,6 +143,6 @@ class UserActivity : AppCompatActivity() {
         textEnd.text = endDate4TextView
         val h:Int = ((totalTime/1000)/60)/60
         val m:Int = ((totalTime/1000)/60)%60
-        textTime.text = h.toString() + "  h  " + m.toString() + "  m"
+        textTime.text = h.toString() + "  시간  " + m.toString() + "  분"
     }
 }

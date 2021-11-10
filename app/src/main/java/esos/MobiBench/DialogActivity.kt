@@ -3,7 +3,6 @@ package esos.MobiBench
 import android.annotation.TargetApi
 import android.app.Activity
 import android.content.SharedPreferences
-import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
@@ -37,6 +36,7 @@ class DialogActivity : Activity() {
             ViewGroup.LayoutParams.FILL_PARENT,
             ViewGroup.LayoutParams.FILL_PARENT
         )
+
         list = DataListView(this)
 
 
@@ -106,6 +106,7 @@ class DialogActivity : Activity() {
         list!!.setAdapter(adapter)
         setContentView(list, params)
         window.setFeatureInt(Window.FEATURE_CUSTOM_TITLE, R.layout.custome_title)
+        window.setBackgroundDrawableResource(R.color.white)
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         var ni = cm.getNetworkInfo(ConnectivityManager.TYPE_WIFI)
         isWifiAvail = ni!!.isAvailable
