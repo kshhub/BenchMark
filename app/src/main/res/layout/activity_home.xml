@@ -15,7 +15,7 @@
         android:layout_marginTop="200dp"
         android:background="@drawable/custom_button"
         android:text="벤치마크"
-        android:textSize="17sp"
+        android:textSize="16sp"
         app:backgroundTint="@null"
         app:layout_constraintStart_toStartOf="@+id/buttonPhone"
         app:layout_constraintTop_toBottomOf="@+id/buttonPhone" />
@@ -28,7 +28,7 @@
         android:layout_marginTop="100dp"
         android:background="@drawable/custom_button"
         android:text="사용자 \n패턴 분석"
-        android:textSize="17sp"
+        android:textSize="16sp"
         app:backgroundTint="@null"
         app:layout_constraintBottom_toTopOf="@+id/buttonPhone"
         app:layout_constraintEnd_toEndOf="@+id/buttonPhone" />
