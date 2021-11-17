@@ -22,19 +22,22 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="5dp"
             android:layout_marginLeft="5dp"
-            android:text="Seq.Write" />
+            android:text="Seq.Write"
+            android:textSize="12sp" />
 
         <RadioButton
             android:id="@+id/radioButton2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Seq.Read" />
+            android:text="Seq.Read"
+            android:textSize="12sp" />
 
         <RadioButton
             android:id="@+id/radioButton3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Rand.Write" />
+            android:text="Rand.Write"
+            android:textSize="12sp" />
 
         <RadioButton
             android:id="@+id/radioButton4"
@@ -42,7 +45,8 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="5dp"
             android:layout_marginRight="5dp"
-            android:text="Rand.Read" />
+            android:text="Rand.Read"
+            android:textSize="12sp" />
 
     </RadioGroup>
 
