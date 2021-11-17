@@ -1,15 +1,15 @@
 package esos.MobiBench
 
-import android.R
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.ContentValues.TAG
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.view.WindowManager
-import android.widget.*
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import esos.MobiBench.databinding.ActivityUserBinding
@@ -17,6 +17,7 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.Comparator
+
 
 class UserActivity : AppCompatActivity() {
 
@@ -29,6 +30,8 @@ class UserActivity : AppCompatActivity() {
     var totalTime:Int= 0
     var beginDate4TextView:String = ""
     var endDate4TextView:String = ""
+
+    var mes:String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +46,6 @@ class UserActivity : AppCompatActivity() {
     }
 
     private fun init(){
-
         binding.buttonRun.setOnClickListener {
             if(binding.editTextBegin.text.toString() == "" || binding.editTextBegin.text.toString()==null ||
                 binding.editTextEnd.text.toString() == "" || binding.editTextEnd.text.toString()==null){
@@ -62,6 +64,16 @@ class UserActivity : AppCompatActivity() {
                 }
             }
         }
+        binding.buttonShare.setOnClickListener {
+            if(mes!=""){
+                val sharingIntent = Intent(Intent.ACTION_SEND)
+                sharingIntent.type = "text/html"
+                sharingIntent.putExtra(Intent.EXTRA_TEXT, mes)
+                startActivity(Intent.createChooser(sharingIntent, "Share"))
+            }else{
+                Toast.makeText(this, "실행 버튼을 눌러 측정해주세요.",Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun initValue(){
@@ -74,6 +86,7 @@ class UserActivity : AppCompatActivity() {
         binding.recyclerView.layoutManager = LinearLayoutManager(this,
             LinearLayoutManager.VERTICAL, false)
         adapter = UserAdapter(ArrayList<UserData>())
+        mes = ""
         val applist = getAppUsageStats()
         if(applist.size>0){
             for(appinfo in applist){
@@ -82,6 +95,7 @@ class UserActivity : AppCompatActivity() {
                 val appicon = packageManager.getApplicationIcon(appinfo.packageName)
                 if (apptime.toString() != "0") {
                     adapter.items.add(UserData(apptime.toString() + " ms", apppackname, appicon))
+                    mes = mes + "packagename: " + appinfo.packageName + " runtime: " + apptime.toString() + "ms" + "\n"
                 }
             }
         }
