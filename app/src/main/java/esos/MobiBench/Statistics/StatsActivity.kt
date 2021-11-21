@@ -96,7 +96,7 @@ class StatsActivity : AppCompatActivity() {
                 setDrawAxisLine(false) // 축 그리기 설정
                 axisLineColor = ContextCompat.getColor(context,R.color.design_default_color_secondary_variant) // 축 색깔 설정
                 gridColor = ContextCompat.getColor(context,R.color.design_default_color_on_secondary) // 축 아닌 격자 색깔 설정
-                textColor = ContextCompat.getColor(context,R.color.design_default_color_primary_dark) // 라벨 텍스트 컬러 설정
+                textColor = ContextCompat.getColor(context,R.color.teal_200) // 라벨 텍스트 컬러 설정
                 textSize = 13f //라벨 텍스트 크기
             }
             xAxis.run {
@@ -104,7 +104,7 @@ class StatsActivity : AppCompatActivity() {
                 granularity = 1f // 1 단위만큼 간격 두기
                 setDrawAxisLine(true) // 축 그림
                 setDrawGridLines(false) // 격자
-                textColor = ContextCompat.getColor(context,R.color.design_default_color_primary_dark) //라벨 색상
+                textColor = ContextCompat.getColor(context, R.color.teal_200) //라벨 색상
                 textSize = 12f // 텍스트 크기
                 valueFormatter = MyXAxisFormatter() // X축 라벨값(밑에 표시되는 글자) 바꿔주기 위해 설정
             }
@@ -115,7 +115,7 @@ class StatsActivity : AppCompatActivity() {
         }
 
         var set = BarDataSet(entries,"DataSet") // 데이터셋 초기화
-        set.color = ContextCompat.getColor(applicationContext!!,R.color.design_default_color_primary_dark) // 바 그래프 색 설정
+        set.color = ContextCompat.getColor(applicationContext!!, R.color.teal_200) // 바 그래프 색 설정
 
         val dataSet :ArrayList<IBarDataSet> = ArrayList()
         dataSet.add(set)

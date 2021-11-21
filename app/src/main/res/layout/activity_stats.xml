@@ -4,12 +4,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#FFFFFF"
     android:orientation="vertical"
     tools:context=".Statistics.StatsActivity">
 
     <RadioGroup
         android:id="@+id/radioGroup"
-        android:layout_width="wrap_content"
+        android:layout_width="350dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_margin="5dp"
@@ -20,46 +21,52 @@
             android:id="@+id/radioButton1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="5dp"
-            android:layout_marginLeft="5dp"
-            android:text="Seq.Write"
+            android:layout_marginStart="20dp"
+            android:layout_marginLeft="20dp"
+            android:text="Seq\nWrite"
             android:textSize="12sp" />
 
         <RadioButton
             android:id="@+id/radioButton2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Seq.Read"
+            android:layout_marginStart="20dp"
+            android:layout_marginLeft="20dp"
+            android:text="Seq\nRead"
             android:textSize="12sp" />
 
         <RadioButton
             android:id="@+id/radioButton3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Rand.Write"
+            android:layout_marginStart="20dp"
+            android:layout_marginLeft="20dp"
+            android:text="Rand\nWrite"
             android:textSize="12sp" />
 
         <RadioButton
             android:id="@+id/radioButton4"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="5dp"
-            android:layout_marginRight="5dp"
-            android:text="Rand.Read"
+            android:layout_marginStart="20dp"
+            android:layout_marginLeft="20dp"
+            android:text="Rand\nRead"
             android:textSize="12sp" />
 
     </RadioGroup>
 
     <com.github.mikephil.charting.charts.BarChart
         android:id="@+id/Chart"
-        android:layout_width="match_parent"
-        android:layout_height="300dp">
+        android:layout_width="350dp"
+        android:layout_height="300dp"
+        android:layout_gravity="center"
+        android:background="#FFFFFF">
 
     </com.github.mikephil.charting.charts.BarChart>
 
     <TextView
         android:id="@+id/TextViewex"
-        android:layout_width="400dp"
+        android:layout_width="350dp"
         android:layout_height="100dp"
         android:layout_gravity="center"
         android:layout_marginTop="10dp"

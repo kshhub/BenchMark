@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# release
+jkl.apk
+output-metadata.json
