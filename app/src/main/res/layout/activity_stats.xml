@@ -24,6 +24,7 @@
             android:layout_marginStart="20dp"
             android:layout_marginLeft="20dp"
             android:text="Seq\nWrite"
+            android:textColor="#434343"
             android:textSize="12sp" />
 
         <RadioButton
@@ -33,6 +34,7 @@
             android:layout_marginStart="20dp"
             android:layout_marginLeft="20dp"
             android:text="Seq\nRead"
+            android:textColor="#434343"
             android:textSize="12sp" />
 
         <RadioButton
@@ -42,6 +44,7 @@
             android:layout_marginStart="20dp"
             android:layout_marginLeft="20dp"
             android:text="Rand\nWrite"
+            android:textColor="#434343"
             android:textSize="12sp" />
 
         <RadioButton
@@ -51,6 +54,7 @@
             android:layout_marginStart="20dp"
             android:layout_marginLeft="20dp"
             android:text="Rand\nRead"
+            android:textColor="#434343"
             android:textSize="12sp" />
 
     </RadioGroup>
@@ -73,6 +77,7 @@
         android:background="@drawable/edge"
         android:gravity="center"
         android:text="위 통계는 항목 별 \n 최근 기록 7개를 보여줍니다."
+        android:textColor="#434343"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintHorizontal_bias="0.002"

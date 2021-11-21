@@ -40,7 +40,8 @@
                     android:layout_marginLeft="5dp"
                     android:layout_marginEnd="5dp"
                     android:gravity="center"
-                    android:text="시작일" />
+                    android:text="시작일"
+                    android:textColor="#434343" />
 
                 <EditText
                     android:id="@+id/editTextBegin"
@@ -50,6 +51,7 @@
                     android:layout_marginLeft="5dp"
                     android:ems="5"
                     android:inputType="number"
+                    android:textColor="#434343"
                     android:textSize="14sp" />
 
                 <TextView
@@ -60,7 +62,8 @@
                     android:layout_marginEnd="5dp"
                     android:layout_marginRight="5dp"
                     android:layout_weight="1"
-                    android:text="일 전" />
+                    android:text="일 전"
+                    android:textColor="#434343" />
 
             </LinearLayout>
 
@@ -79,7 +82,8 @@
                     android:layout_marginLeft="5dp"
                     android:layout_marginEnd="10dp"
                     android:gravity="center"
-                    android:text="종료일" />
+                    android:text="종료일"
+                    android:textColor="#434343" />
 
                 <EditText
                     android:id="@+id/editTextEnd"
@@ -87,6 +91,7 @@
                     android:layout_height="40dp"
                     android:ems="5"
                     android:inputType="number"
+                    android:textColor="#434343"
                     android:textSize="14sp" />
 
                 <TextView
@@ -97,7 +102,8 @@
                     android:layout_marginEnd="5dp"
                     android:layout_marginRight="5dp"
                     android:layout_weight="1"
-                    android:text="일 전" />
+                    android:text="일 전"
+                    android:textColor="#434343" />
 
             </LinearLayout>
 
@@ -196,6 +202,7 @@
                 android:layout_marginRight="8dp"
                 android:gravity="center"
                 android:text="yy-mm-dd"
+                android:textColor="#434343"
                 android:textSize="20sp" />
 
             <TextView
@@ -204,6 +211,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:text="yy-mm-dd"
+                android:textColor="#434343"
                 android:textSize="20sp" />
         </LinearLayout>
 
@@ -232,6 +240,7 @@
             android:layout_marginBottom="5dp"
             android:layout_weight="1"
             android:gravity="center"
+            android:textColor="#434343"
             android:textSize="20sp" />
     </LinearLayout>
 
