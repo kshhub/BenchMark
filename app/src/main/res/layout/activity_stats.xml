@@ -10,19 +10,18 @@
 
     <RadioGroup
         android:id="@+id/radioGroup"
-        android:layout_width="350dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_margin="5dp"
         android:background="@drawable/edge"
+        android:gravity="center"
         android:orientation="horizontal">
 
         <RadioButton
             android:id="@+id/radioButton1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_marginLeft="20dp"
             android:text="Seq\nWrite"
             android:textColor="#434343"
             android:textSize="12sp" />
@@ -61,19 +60,20 @@
 
     <com.github.mikephil.charting.charts.BarChart
         android:id="@+id/Chart"
-        android:layout_width="350dp"
+        android:layout_width="match_parent"
         android:layout_height="300dp"
         android:layout_gravity="center"
+        android:layout_margin="5dp"
         android:background="#FFFFFF">
 
     </com.github.mikephil.charting.charts.BarChart>
 
     <TextView
         android:id="@+id/TextViewex"
-        android:layout_width="350dp"
+        android:layout_width="match_parent"
         android:layout_height="100dp"
         android:layout_gravity="center"
-        android:layout_marginTop="10dp"
+        android:layout_margin="5dp"
         android:background="@drawable/edge"
         android:gravity="center"
         android:text="위 통계는 항목 별 \n 최근 기록 7개를 보여줍니다."
