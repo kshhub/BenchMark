@@ -40,7 +40,7 @@ class UserActivity : AppCompatActivity() {
     var mes:String = ""
 
     private val selectItems = arrayOf("1-Day","2-Day","3-Day","4-Day","5-Day","6-Day",
-        "1-Week","2-Week","3-Week", "1-Month", "2-Month", "3-Month", "1-Year")
+        "1-Week","2-Week","3-Week", "1-Month", "2-Month", "3-Month")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -138,9 +138,6 @@ class UserActivity : AppCompatActivity() {
                 11 -> {
                     begin = "3-Month"
                 }
-                12 -> {
-                    begin = "1-Year"
-                }
             }
         }
 
@@ -160,7 +157,6 @@ class UserActivity : AppCompatActivity() {
             "1-Month" -> beginDay=30
             "2-Month" -> beginDay=60
             "3-Month" -> beginDay=90
-            "1-Year" -> beginDay=365
         }
     }
 
