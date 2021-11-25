@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android" 
+ 	android:id="@+id/progressimage" android:oneshot="false"> 
+    <item android:drawable="@drawable/bg_mea2" android:duration="500" />
+    <item android:drawable="@drawable/bg_mea3" android:duration="500" />
+</animation-list>
